@@ -6,7 +6,7 @@ import numpy as np
 import scipy
 from functools import reduce
 
-import helper as hlp
+import helper
 import warnings
 from datetime import timedelta as time
 
@@ -106,7 +106,7 @@ def time_in_range(df, exercise_thresholds=False):
         if not exercise_thresholds:
             for ID in set(df['ID'].values):
                 id_glc = df[df['ID'] == ID]['glc']
-                list_results.append([ID] + hlp.tir_helper(id_glc))
+                list_results.append([ID] + helper.tir_helper(id_glc))
             results = pd.DataFrame(list_results, columns=['ID', 'TIR lv2 hypo (<3)', 'TIR lv1 hypo (3-3.9)',
                                                           'TIR hypo (<3.9)', 'TIR norm (3.9-10)', 'TIR hyper (>10)',
                                                           'TIR lv1 hyper (10-13.9)', 'TIR_lv2_hyper (>13.9)'])
@@ -115,7 +115,7 @@ def time_in_range(df, exercise_thresholds=False):
         else:
             for ID in set(df['ID'].values):
                 id_glc = df[df['ID'] == ID]['glc']
-                list_results.append(ID + hlp.tir_exercise(id_glc))
+                list_results.append(ID + helper.tir_exercise(id_glc))
             results = pd.DataFrame(list_results, columns=['ID', 'TIR hypo (<7)', 'TIR normal(7-15)', 'TIR hyper (>15)'])
 
     # df doesn't have an id column
@@ -123,7 +123,7 @@ def time_in_range(df, exercise_thresholds=False):
         # normal thresholds
         # same as 1st block, just need to run for once rather than for all IDs
         if not exercise_thresholds:
-            list_results.append(hlp.tir_helper(df['glc']))
+            list_results.append(helper.tir_helper(df['glc']))
             results = pd.DataFrame(list_results,
                                    columns=['TIR lv2 hypo (<3)', 'TIR lv1 hypo (3-3.9)', 'TIR hypo (<3.9)',
                                             'TIR norm (3.9-10)', 'TIR hyper (>10)',
@@ -131,7 +131,7 @@ def time_in_range(df, exercise_thresholds=False):
         # exercise thresholds
         # same as 2nd block but only need to run once
         else:
-            list_results.append(hlp.tir_exercise(df['glc']))
+            list_results.append(helper.tir_exercise(df['glc']))
             results = pd.DataFrame(list_results, columns=['TIR hypo (<7)', 'TIR normal(7-15)', 'TIR hyper (>15)'])
     return results
 
@@ -259,7 +259,7 @@ def hypoglycemic_episodes(df, interval_size=5, breakdown=False, exercise_thresho
         # loop through all ids applying helper_hypo_episodes function, found in helper.py
         # returned in a multi-index format so need to select level
         results = df.groupby('ID').apply(
-            lambda group: hlp.helper_hypo_episodes(group, gap_size=interval_size, breakdown=breakdown,
+            lambda group: helper.helper_hypo_episodes(group, gap_size=interval_size, breakdown=breakdown,
                                                    interpolate=interpolate, exercise=exercise_thresholds,
                                                    interp_method=interp_method)).reset_index().drop(columns='level_1')
         if exercise_thresholds & breakdown is False:
@@ -271,7 +271,7 @@ def hypoglycemic_episodes(df, interval_size=5, breakdown=False, exercise_thresho
 
     else:
         df[['glc', 'time']].dropna(inplace=True)
-        results = hlp.helper_hypo_episodes(df, interpolate=interpolate, interp_method=interp_method,
+        results = helper.helper_hypo_episodes(df, interpolate=interpolate, interp_method=interp_method,
                                            exercise=exercise_thresholds, gap_size=interval_size, breakdown=breakdown)
         return results
 
@@ -302,12 +302,12 @@ def percent_missing(df, interval_size, start_datetime=None, end_datetime=None):
     if 'ID' in df.columns:
         for ID in set(df['ID'].values):
             id_time = df[df['ID'] == ID]
-            list_results.append([ID] + hlp.helper_missing(id_time, gap_size=interval_size, start_time=start_datetime,
+            list_results.append([ID] + helper.helper_missing(id_time, gap_size=interval_size, start_time=start_datetime,
                                                           end_time=end_datetime))
         df_results = pd.DataFrame(list_results,
                                   columns=['ID', 'percent missing', 'start time', 'end time', 'interval'])
         return df_results
     else:
-        return pd.DataFrame([hlp.helper_missing(df, gap_size=interval_size, start_time=start_datetime,
+        return pd.DataFrame([helper.helper_missing(df, gap_size=interval_size, start_time=start_datetime,
                                                 end_time=end_datetime)],
                             columns=['percent missing', 'start time', 'end time', 'interval'])
