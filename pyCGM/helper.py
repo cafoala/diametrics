@@ -54,6 +54,7 @@ def helper_hypo_episodes(df, breakdown, gap_size, interpolate, interp_method, ex
     """
     # Setting a copy so the df isn't altered in the following forloop
     df = copy.copy(df)
+    df.dropna(subset=['glc'], inplace=True)
     # Convert time column to datetime and sort by time then reset index
     df['time'] = pd.to_datetime(df['time'])
     df.sort_values('time', inplace=True)
@@ -140,7 +141,7 @@ def helper_hypo_episodes(df, breakdown, gap_size, interpolate, interp_method, ex
                     # the difference between hypos is less than 15 mins + 2 * time interval between readings
                     # end of the hypo is changed to end of next row, low is made lowest of both
                     # and lv2 is true if either one is true
-                    if nxt_row.start - end < time(minutes=15 + 2 * gap_size):  #
+                    if nxt_row.start - end < time(minutes=(6 - gap_size / 5) * gap_size):  #
                         end = nxt_row.end
                         if low > nxt_row.low:
                             low = nxt_row.low
@@ -225,21 +226,32 @@ def helper_missing(df, gap_size, start_time, end_time):
     df = df.dropna(subset=['glc'])
 
     # create dataframe if start & end times are given
-    if (start_time is not None) & (end_time is not None):
-        cut_df = df[(df['time'] >= start_time) & (df['time'] <= end_time)]
-        non_null = cut_df.glc.count()
-        total = (end_time - start_time) / gap_size
-        perc_missing = ((total - non_null) * 100) / total
+    # if (start_time is not None) & (end_time is not None):
+    '''cut_df = df[(df['time'] >= start_time) & (df['time'] <= end_time)]
+    non_null = cut_df.glc.count()
+    total = (end_time - start_time) / gap_size
+    perc_missing = ((total - non_null) * 100) / total'''
 
     # calculate the missing data based on start and end of df
-    else:
+    # else:
+    if (start_time is None) | (end_time is None):
         start_time = df.time.iloc[0]
         end_time = df.time.iloc[-1]
-        series = df.set_index('time')
-        non_null = series.shape[0]
-        # use resampling to calculate total number of points
-        resampled_series = series.resample(rule='min', origin='start').asfreq()
-        total = (resampled_series.shape[0] + gap_size - 1) / gap_size
-        # perc missing is nulls/total
+
+    cut_df = df[(df['time'] >= start_time) & (df['time'] <= end_time)]
+    # non_null = cut_df.glc.count()
+    # total = (end_time - start_time) / time(gap_size)
+    # perc_missing = ((total - non_null) * 100) / total'''
+
+    series = df.set_index('time')
+    non_null = series.shape[0]
+    # use resampling to calculate total number of points
+    resampled_series = series.resample(rule='min', origin='start').asfreq()
+    total = (resampled_series.shape[0] + gap_size - 1) / gap_size
+    if total == 0:
+        print('here')
+        perc_missing = 100
+    # perc missing is nulls/total
+    else:
         perc_missing = (total - non_null) * 100 / total
-    return [perc_missing, start_time, end_time, str(gap_size) + ' mins']
+    return [perc_missing]  # , start_time, end_time, str(gap_size) + ' mins']

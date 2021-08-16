@@ -18,7 +18,7 @@ fift_mins = time(minutes=15)
 thirt_mins = time(minutes=30)
 
 
-def all_metrics(df, interval_size, exercise_thresholds=False):
+def all_metrics(df, interval_size, start_time=None, end_time=None, by_day=False, exercise_thresholds=False):
     """
     Calculates all available CGM metrics in one go. Time in range, hypoglycemic episodes, average glucose, glycemic
     variability and ea1c.
@@ -29,34 +29,56 @@ def all_metrics(df, interval_size, exercise_thresholds=False):
     :param interval_size: Int
         The length of time between glucose readings
 
+    :param by_day: Bool
+        Gives a breakdown of all metrics by day
+
     :param exercise_thresholds: Bool
         Sets the thresholds for time in range to exercise, <7 for hypoglycemia and >15 for hyperglycemia
 
     :return: Pandas DataFrame
         Contains all of the metric columns along with ID and exercise_thresholds if selected
     """
+    df['time'] = pd.to_datetime(df['time'])
+
+    id_bool = 'ID' in df.columns
+    by_day_id = True
+    # if by_day breakdown selected, add the date to id
+    if by_day & id_bool:
+        df['ID'] = df['ID'] + '$' + df['time'].dt.date.astype(str)
+    elif by_day:
+        df['ID'] = df['time'].dt.date.astype(str)
+        id_bool = True
+        by_day_id = False
+
     # calls all of functions in the package
     hypos = hypoglycemic_episodes(df, interval_size=interval_size)
     tir = time_in_range(df)
     glc_var = glycemic_variability(df)
     avg = average_glucose(df)
     ea1c_val = ea1c(df)
-    perc_missing = percent_missing(df, interval_size=interval_size)
+    perc_missing = percent_missing(df, interval_size=interval_size, start_datetime=start_time, end_datetime=end_time)
+
     # if exercise_thresholds are True, calculate time in range and number of hypoglycemic episodes for exercise
     if exercise_thresholds:
         tir_ex = time_in_range(df, exercise_thresholds=True)
         hypos_ex = hypoglycemic_episodes(df, interval_size=interval_size, exercise_thresholds=True)
-    # dataframes to concatenate
+        # dataframes to concatenate
         data_frames = [tir, tir_ex, hypos, hypos_ex, glc_var, avg, perc_missing, ea1c_val]
     else:
         data_frames = [tir, hypos, glc_var, avg, perc_missing, ea1c_val]
     # If ID column is present, merge all of the dataframes on ID
-    if 'ID' in df.columns:
+    if id_bool:
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=['ID'],
                                                         how='outer'), data_frames)
+        if by_day:
+            df_merged[['ID', 'date']] = df_merged['ID'].str.split('$', n=1, expand=True)
+        else:
+            df_merged.rename({'ID': 'date'})
     else:
         df_merged = pd.concat(data_frames)
 
+    if not exercise_thresholds:
+        df_merged['number lv1 hypos'] = df_merged['number hypos'] - df_merged['number lv2 hypos']
     return df_merged
 
 
@@ -115,7 +137,7 @@ def time_in_range(df, exercise_thresholds=False):
         else:
             for ID in set(df['ID'].values):
                 id_glc = df[df['ID'] == ID]['glc']
-                list_results.append(ID + helper.tir_exercise(id_glc))
+                list_results.append([ID] + helper.tir_exercise(id_glc))
             results = pd.DataFrame(list_results, columns=['ID', 'TIR hypo (<7)', 'TIR normal(7-15)', 'TIR hyper (>15)'])
 
     # df doesn't have an id column
@@ -260,19 +282,18 @@ def hypoglycemic_episodes(df, interval_size=5, breakdown=False, exercise_thresho
         # returned in a multi-index format so need to select level
         results = df.groupby('ID').apply(
             lambda group: helper.helper_hypo_episodes(group, gap_size=interval_size, breakdown=breakdown,
-                                                   interpolate=interpolate, exercise=exercise_thresholds,
-                                                   interp_method=interp_method)).reset_index().drop(columns='level_1')
-        if exercise_thresholds & breakdown is False:
+                                                      interpolate=interpolate, exercise=exercise_thresholds,
+                                                      interp_method=interp_method)).reset_index().drop(
+            columns='level_1')
+        if exercise_thresholds & (breakdown is False):
             results.drop(columns='number lv2 hypos', inplace=True)
-            print(results.head())
-
             results.columns = ['ID', 'number hypos (<7)', 'avg length (<7)', 'total time in hypo (<7)']
         return results
 
     else:
         df[['glc', 'time']].dropna(inplace=True)
         results = helper.helper_hypo_episodes(df, interpolate=interpolate, interp_method=interp_method,
-                                           exercise=exercise_thresholds, gap_size=interval_size, breakdown=breakdown)
+                                              exercise=exercise_thresholds, gap_size=interval_size, breakdown=breakdown)
         return results
 
 
@@ -303,11 +324,11 @@ def percent_missing(df, interval_size, start_datetime=None, end_datetime=None):
         for ID in set(df['ID'].values):
             id_time = df[df['ID'] == ID]
             list_results.append([ID] + helper.helper_missing(id_time, gap_size=interval_size, start_time=start_datetime,
-                                                          end_time=end_datetime))
+                                                             end_time=end_datetime))
         df_results = pd.DataFrame(list_results,
-                                  columns=['ID', 'percent missing', 'start time', 'end time', 'interval'])
+                                  columns=['ID', 'percent missing']) #, 'start time', 'end time', 'interval'])
         return df_results
     else:
         return pd.DataFrame([helper.helper_missing(df, gap_size=interval_size, start_time=start_datetime,
-                                                end_time=end_datetime)],
-                            columns=['percent missing', 'start time', 'end time', 'interval'])
+                                                   end_time=end_datetime)],
+                            columns=['percent missing']) #, 'start time', 'end time', 'interval'])
