@@ -27,6 +27,15 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
     :param df: Pandas DataFrame
         Glucose monitor time series, must contain columns titled 'time' and 'glc', 'ID' optional
 
+    :param time: String
+        Name of columns with time data
+
+    :param glc : String
+        Name of column with glucose data
+
+    :param ID : String
+        Name of column with patient ID (optional)
+
     :param interval_size: Int
         The length of time between glucose readings
 
@@ -77,6 +86,7 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
                                                         how='outer'), data_frames)
         if by_day:
             df_merged[[ID, 'date']] = df_merged[ID].str.split('$', n=1, expand=True)
+            df_merged[ID] = df_merged[ID].astype(df[ID].dtype)
         else:
             df_merged.rename({ID: 'date'})
     else:
@@ -118,14 +128,12 @@ def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False):
     list_results = []
     # drop any null values in the glc column
     df = df.dropna(subset=[glc])
-
     # calculate the total number of readings
     df_len = df.shape[0]
 
     # check that there's readings in the df
     if df_len == 0:
-        print('LEN ERROR')
-        print('')
+        raise Exception('Empty dataframe')
         # Throw some kind of error!!!???
 
     # if the df has an id column
@@ -181,15 +189,17 @@ def ea1c(df, glc='glc', ID=None):
     :param df: Pandas DataFrame
         Glucose monitor time series, must contain columns titled 'time' and 'glc', 'ID' optional
 
-    glc : String
+    :param glc : String
         Name of column with glucose data
 
-    ID : String
+    :param ID : String
         Name of column with patient ID (optional)
 
     :return: Pandas DataFrame
         Contains ea1c and ID if present
     """
+    if df.empty:
+        raise Exception('Empty dataframe')
     list_results = []
     # loops through IDs calculating ea1c and returning
     if ID is not None:
@@ -213,6 +223,12 @@ def glycemic_variability(df, glc='glc', ID=None):
 
     :param df: Pandas DataFrame
         Glucose monitor time series, must contain columns titled 'time' and 'glc', 'ID' optional
+
+    :param glc : String
+        Name of column with glucose data
+
+    :param ID : String
+        Name of column with patient ID (optional)
 
     :return: Pandas DataFrame
         Contains SD, CD, min and max glucose and ID if present
@@ -252,9 +268,18 @@ def average_glucose(df, glc='glc', ID=None):
     :param df: Pandas DataFrame
         Glucose monitor time series, must contain columns titled 'time' and 'glc', 'ID' optional
 
+    :param glc : String
+        Name of column with glucose data
+
+    :param ID : String
+        Name of column with patient ID (optional)
+
     :return: Pandas DataFrame
         Contains average glucose and ID if present
     """
+    if df.empty:
+        raise Exception('Empty dataframe')
+
     list_results = []
     # if df has an id column, set has_id to either true or false
     if ID is not None:
@@ -280,23 +305,40 @@ def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, 
 
     :param df: Pandas DataFrame
         Glucose monitor time series, must contain columns titled 'time' and 'glc', 'ID' optional
+
+    :param time: String
+        Name of columns with time data
+
+    :param glc : String
+        Name of column with glucose data
+
+    :param ID : String
+        Name of column with patient ID (optional)
+
     :param interval_size: Int
         The length of time between glucose readings
+
     :param exercise_thresholds: Bool
         Whether exercise threshold (<7mmol/L) should be used to determine a hypoglycemic episode. If False, regular
         thresholds of 3.9mmol/L and 3mmol/L will be used to determine level 1 and level 2 episodes.
+
     :param breakdown: Bool
         Whether an episode by episode breakdown of the results should be returned or an overview of episodes for each ID
+
     :param interpolate: Bool
         Whether the data should be interpolated before the hypoglycemic episodes are calculated
+
     :param interp_method:
         The interpolation method used if interpolation is True
+
     :return: Pandas DataFrame
         If breakdown is False, will return an overview with the number of hypoglycemic episodes (level 1 & 2 or
         <7mmol/L), mean length of episode, total time in hypoglycemia for each ID.
         If breakdown is True, will return a breakdown of each episode with start time, end time, whether it is a level 2
         episode and the min glucose for each ID
     """
+    if df.empty:
+        raise Exception('Empty dataframe')
     # has an id column to loop through ids
     if ID is not None:
         df[[ID, glc, time]].dropna(inplace=True)
@@ -326,15 +368,31 @@ def percent_missing(df, time='time', glc='glc', ID=None, interval_size=5, start_
     to assess over a period of time how much data is missing, otherwise will just do from start to end of dataset.
     :param df: Pandas DataFrame
         Glucose monitor time series, must contain columns titled 'time' and 'glc', 'ID' optional
+
+    :param time: String
+        Name of columns with time data
+
+    :param glc : String
+        Name of column with glucose data
+
+    :param ID : String
+        Name of column with patient ID (optional)
+
     :param interval_size: Int
         The length of time between glucose readings
+
     :param start_datetime: String or Datetime
         The start datetime when setting a period to check for missing data
+
     :param end_datetime: String or Datetime
         The end datetime when setting a period to check for missing data
+
     :return: Pandas DataFrame
         Contains percentage of missing data, start time, end time and interval size
     """
+    if df.empty:
+        raise Exception('Empty dataframe')
+
     df[time] = pd.to_datetime(df[time])
 
     # Some check that checks start_time and end_time are dt objects
