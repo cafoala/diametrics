@@ -3,12 +3,12 @@ import pandas as pd
 import numpy as np
 import scipy
 import warnings
-from datetime import timedelta as time
+from datetime import timedelta
 
 warnings.filterwarnings('ignore')
 
-fift_mins = time(minutes=15)
-thirt_mins = time(minutes=30)
+fift_mins = timedelta(minutes=15)
+thirt_mins = timedelta(minutes=30)
 
 
 def tir_helper(series):
@@ -48,37 +48,37 @@ def tir_exercise(series):
     return [tir_hypo_ex, tir_norm_ex, tir_hyper_ex]
 
 
-def helper_hypo_episodes(df, breakdown, gap_size, interpolate, interp_method, exercise):
+def helper_hypo_episodes(df, time, glc, breakdown, gap_size, interpolate, interp_method, exercise):
     """
     Helper function for hypoglycemic_episodes.
     """
     # Setting a copy so the df isn't altered in the following forloop
     df = copy.copy(df)
-    df.dropna(subset=['glc'], inplace=True)
+    df.dropna(subset=[glc], inplace=True)
     # Convert time column to datetime and sort by time then reset index
-    df['time'] = pd.to_datetime(df['time'])
-    df.sort_values('time', inplace=True)
+    df[time] = pd.to_datetime(df[time])
+    df.sort_values(time, inplace=True)
     df.reset_index(drop=True)
 
     # Calls the interpolate function if interpolate==True
     if interpolate:
-        df.set_index('time', inplace=True)
+        df.set_index(time, inplace=True)
         df = df.resample(rule='min', origin='start').asfreq()
-        df['glc'] = df['glc'].interpolate(method=interp_method, limit_area='inside',
+        df[glc] = df[glc].interpolate(method=interp_method, limit_area='inside',
                                           limit_direction='forward', limit=fill_gap_size)
         df.reset_index(inplace=True)
 
     # set a boolean array where glc goes below 3.9, unless exercise thresholds are set then it's 7
     if exercise:
-        bool_array = df.glc < 7
+        bool_array = df[glc] < 7
     else:
-        bool_array = df.glc < 3.9
+        bool_array = df[glc] < 3.9
     # gives a consecutive unique number to every bout below 3.9
     unique_consec_number = bool_array.ne(bool_array.shift()).cumsum()
     # the number of consecutive readings below 3.9
     number_consec_readings = unique_consec_number.map(unique_consec_number.value_counts()).where(bool_array)
     # set up a df using these values to identify each bout of hypogylcaemia
-    df_full = pd.DataFrame({'time': df.time, 'glc': df.glc,
+    df_full = pd.DataFrame({'time_rep': df[time], 'glc_rep': df[glc],
                             'unique_number': unique_consec_number,
                             'consec_readings': number_consec_readings})
     # drop nulls and reset index to only get bouts below 3.9 in df
@@ -93,9 +93,9 @@ def helper_hypo_episodes(df, breakdown, gap_size, interpolate, interp_method, ex
     for num in set(df_full.unique_number.values):
         # set the values of low at the unique number equal to the min glc for that bout
         df_full['low'].iloc[df_full[df_full['unique_number'] == num].index] = df_full[
-            df_full['unique_number'] == num].glc.min()
+            df_full['unique_number'] == num]['glc_rep'].min()
         # calculate whether the bout was a lv_2 hypo by calling the lv2_calc function
-        lv2 = lv2_calc(df_full[df_full['unique_number'] == num])
+        lv2 = lv2_calc(df_full[df_full['unique_number'] == num], 'time_rep', 'glc_rep')
         # set the lv2 column equal to the boolean value
         df_full['lv2'].iloc[df_full[df_full['unique_number'] == num].index] = lv2
 
@@ -103,11 +103,11 @@ def helper_hypo_episodes(df, breakdown, gap_size, interpolate, interp_method, ex
     for num in set(df_full['unique_number'].values):
         # print(num)
         sub_df = df_full[df_full['unique_number'] == num]
-        sub_df.sort_values('time', inplace=True)
+        sub_df.sort_values('time_rep', inplace=True)
         sub_df.reset_index(inplace=True)
 
-        start_time = sub_df['time'].iloc[0]
-        end_time = sub_df['time'].iloc[-1]
+        start_time = sub_df['time_rep'].iloc[0]
+        end_time = sub_df['time_rep'].iloc[-1]
         low = sub_df['low'].iloc[0]
         lv2 = sub_df['lv2'].iloc[0]
 
@@ -127,7 +127,7 @@ def helper_hypo_episodes(df, breakdown, gap_size, interpolate, interp_method, ex
         diff = row.end - row.start
         # only considered a hypo if the duration of hypo is >= 15 mins
         # if it's longer than 15 mins, allocate the variables to equal the row
-        if (diff >= time(minutes=15)) & (diff > time(0)):
+        if (diff >= timedelta(minutes=15)) & (diff > timedelta(0)):
             start = row.start
             end = row.end
             low = row.low
@@ -141,7 +141,7 @@ def helper_hypo_episodes(df, breakdown, gap_size, interpolate, interp_method, ex
                     # the difference between hypos is less than 15 mins + 2 * time interval between readings
                     # end of the hypo is changed to end of next row, low is made lowest of both
                     # and lv2 is true if either one is true
-                    if nxt_row.start - end < time(minutes=(6 - gap_size / 5) * gap_size):  #
+                    if nxt_row.start - end < timedelta(minutes=(6 - gap_size / 5) * gap_size):  #
                         end = nxt_row.end
                         if low > nxt_row.low:
                             low = nxt_row.low
@@ -178,18 +178,20 @@ def helper_hypo_episodes(df, breakdown, gap_size, interpolate, interp_method, ex
     avg_length = duration.mean()
     total_time_hypo = duration.sum()
     number_lv2_hypos = results[results['lv2']].shape[0]
+    number_lv1_hypos = number_hypos-number_lv2_hypos
 
     # if breakdown hasn't been selected, return overview statistics
     if not breakdown:
-        return pd.DataFrame([[number_hypos, avg_length, total_time_hypo, number_lv2_hypos]],
-                            columns=['number hypos', 'avg length', 'total time in hypo', 'number lv2 hypos'])
+        return pd.DataFrame([[number_hypos, avg_length, total_time_hypo, number_lv1_hypos, number_lv2_hypos]],
+                            columns=['number_hypos', 'avg_length_of_hypo', 'total_time_in_hypos', 'number_lv1_hypos',
+                                     'number_lv2_hypos'])
 
     # if breakdown has been selected, gives a breakdown of all the hypoglycaemic episodes start and finish time
     else:
         return results
 
 
-def lv2_calc(df):
+def lv2_calc(df, time, glc):
     """
     Determines whether a hypoglycaemic episode is a level 2 hypoglycaemic episode. Lv2 is when glc drops below
     3.0mmol/L for at least 15 consecutive mins
@@ -197,61 +199,50 @@ def lv2_calc(df):
     # lv2 is false unless proven otherwise
     lv2 = False
     # gives a unique number to all episodes where glc drops below 3
-    bool_array = df.glc < 3
+    bool_array = df[glc] < 3
     unique_consec_number = bool_array.ne(bool_array.shift()).cumsum()
     number_consec_values = unique_consec_number.map(unique_consec_number.value_counts()).where(bool_array)
-    df_comb = pd.DataFrame({'time': df.time, 'unique_lv2': unique_consec_number,
-                            'consec_readings': number_consec_values, 'glc': df.glc})
+    df_comb = pd.DataFrame({'time_rep': df[time], 'unique_lv2': unique_consec_number,
+                            'consec_readings': number_consec_values, 'glc_rep': df[glc]})
     df_comb.dropna(inplace=True)
 
     # loop through all of these bouts below 3 and see if any last at least 15 mins, if so lv2 = True
     for num in set(df_comb['unique_lv2'].values):
         sub_df = df_comb[df_comb['unique_lv2'] == num]
-        sub_df.sort_values('time', inplace=True)
+        sub_df.sort_values('time_rep', inplace=True)
         sub_df.reset_index(inplace=True)
 
-        start_time = sub_df['time'].iloc[0]
-        end_time = sub_df['time'].iloc[-1]
-        if end_time - start_time >= time(minutes=15):
+        start_time = sub_df[time].iloc[0]
+        end_time = sub_df[time].iloc[-1]
+        if end_time - start_time >= timedelta(minutes=15):
             lv2 = True
 
     return lv2
 
 
-def helper_missing(df, gap_size, start_time, end_time):
+def helper_missing(df, time, glc, gap_size, start_time, end_time):
     """
     Helper for percent_missing function
     """
-    # dropping nulls in glc
-    df = df.dropna(subset=['glc'])
+    # dropping nulls in glc and time and returning 100% missing if df is empty
+    df = df.dropna(subset=[glc, time]).sort_values(time)
 
-    # create dataframe if start & end times are given
-    # if (start_time is not None) & (end_time is not None):
-    '''cut_df = df[(df['time'] >= start_time) & (df['time'] <= end_time)]
-    non_null = cut_df.glc.count()
-    total = (end_time - start_time) / gap_size
-    perc_missing = ((total - non_null) * 100) / total'''
+    if df.empty:
+        return 100
 
     # calculate the missing data based on start and end of df
-    # else:
     if (start_time is None) | (end_time is None):
-        start_time = df.time.iloc[0]
-        end_time = df.time.iloc[-1]
+        start_time = df[time].iloc[0]
+        end_time = df[time].iloc[-1]
 
-    cut_df = df[(df['time'] >= start_time) & (df['time'] <= end_time)]
-    # non_null = cut_df.glc.count()
-    # total = (end_time - start_time) / time(gap_size)
-    # perc_missing = ((total - non_null) * 100) / total'''
+    # calculate the number of non-null values
+    cut_df = df[(df[time] >= start_time) & (df[time] <= end_time)]
+    non_null = cut_df.shape[0]
 
-    series = df.set_index('time')
-    non_null = series.shape[0]
-    # use resampling to calculate total number of points
-    resampled_series = series.resample(rule='min', origin='start').asfreq()
-    total = (resampled_series.shape[0] + gap_size - 1) / gap_size
-    if total == 0:
-        print('here')
-        perc_missing = 100
-    # perc missing is nulls/total
-    else:
-        perc_missing = (total - non_null) * 100 / total
-    return [perc_missing]  # , start_time, end_time, str(gap_size) + ' mins']
+    # calculate number of total readings
+    total_minutes = (end_time - start_time).total_seconds()/60
+    total_readings = total_minutes/gap_size
+
+    perc_missing = 100*(total_readings-non_null)/total_readings
+
+    return perc_missing
