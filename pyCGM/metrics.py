@@ -296,6 +296,7 @@ def average_glucose(df, glc='glc', ID=None):
 
 def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, breakdown=False, exercise_thresholds=False,
                           interpolate=False, interp_method='pchip'):
+
     """
     Calculates the number of level 1 and level 2 hypoglycemic episodes from the glucose data in a Pandas DataFrame. The
     results can either be an overview of episodes or a breakdown of each episode with a start and end time. Threshold
