@@ -34,6 +34,12 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
     :param ID : String
         Name of column with patient ID (optional)
 
+    :param start_time: Timedelta
+        Start of time-period (optional)
+
+    :param start_time: Timedelta
+        End of time-period (optional)
+
     :param interval_size: Int
         The length of time between glucose readings
 
@@ -347,7 +353,6 @@ def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, 
             lambda group: helper.helper_hypo_episodes(group, time=time, glc=glc, gap_size=interval_size, breakdown=breakdown,
                                                       interpolate=interpolate, exercise=exercise_thresholds,
                                                       interp_method=interp_method)).reset_index().drop(columns='level_1')
-        #print(results)
         if exercise_thresholds & (breakdown is False):
             results.drop(columns=['number_lv1_hypos', 'number_lv2_hypos'], inplace=True)
             results.columns = ['ID', 'number_hypos_below_7', 'avg_length_hypo_below_7',
