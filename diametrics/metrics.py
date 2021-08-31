@@ -52,24 +52,27 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
     :return: Pandas DataFrame
         Contains all of the metric columns along with ID and exercise_thresholds if selected
     """
+    df.dropna(subset=[time, glc], inplace=True)
+    df.sort_values(time, inplace=True)
     if df.empty:
         raise Exception('Empty dataframe')
     df[time] = pd.to_datetime(df[time])
 
     id_bool = ID is not None
-    #by_day_id = True
+    # by_day_id = True
     # if by_day breakdown selected, add the date to id
     if by_day & id_bool:
         df[ID] = df[ID].astype(str) + '$' + df[time].dt.date.astype(str)
     elif by_day:
         df[ID] = df[time].dt.date.astype(str)
         id_bool = True
-        #by_day_id = False
+        # by_day_id = False
 
     # calls all of functions in the package
     hypos = hypoglycemic_episodes(df, time, glc, ID, interval_size=interval_size)
     tir = time_in_range(df, glc, ID)
     glc_var = glycemic_variability(df, glc, ID)
+    mage_results = mage(df, time, glc, ID)
     avg = average_glucose(df, glc, ID)
     ea1c_val = ea1c(df, glc, ID)
     perc_missing = percent_missing(df, time=time, glc=glc, ID=ID, interval_size=interval_size,
@@ -80,10 +83,10 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
         tir_ex = time_in_range(df, glc, ID, exercise_thresholds=True)
         hypos_ex = hypoglycemic_episodes(df, time, glc, ID, interval_size=interval_size, exercise_thresholds=True)
         # dataframes to concatenate
-        data_frames = [tir, tir_ex, hypos, hypos_ex, glc_var, avg, perc_missing, ea1c_val]
+        data_frames = [tir, tir_ex, hypos, hypos_ex, glc_var, avg, mage_results, perc_missing, ea1c_val]
 
     else:
-        data_frames = [tir, hypos, glc_var, avg, perc_missing, ea1c_val]
+        data_frames = [tir, hypos, glc_var, avg, mage_results, perc_missing, ea1c_val]
     # If ID column is present, merge all of the dataframes on ID
     if id_bool:
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=['ID'],
@@ -97,6 +100,42 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
         df_merged = pd.concat(data_frames)
 
     return df_merged
+
+
+def mage(df, time='time', glc='glc', ID=None):
+    """
+    Calculate the mage - positive, negative and mean, , can be used on a dataset from a single person or combined dataset
+    with IDs present df has to be have timestamp and glucose columns
+
+    Parameters
+    ----------
+    df : Pandas DataFrame
+        Glucose monitor time series, must contain columns titled 'time' and 'glc', 'ID' optional
+
+    glc : String
+        Name of column with glucose data
+
+    time : String
+        Name of column with time data
+
+    ID : String
+        Name of column with patient ID (optional)
+    """
+    # Drop null values and raise exception if df is then empty
+    df.dropna(subset=[time, glc], inplace=True)
+    if df.empty:
+        raise Exception('Empty dataframe')
+    # Make time into datetime format and sort by it
+    df[time] = pd.to_datetime(df[time])
+    df.sort_values(time, inplace=True)
+    # Call the mage_helper function for all IDs with groupby
+    if ID is not None:
+        results = df.groupby(ID).apply(lambda group: helper.mage_helper(group, time, glc)).reset_index().drop(
+            columns='level_1')
+    # Call mage_helper for just the 1 ID
+    else:
+        results = helper.mage_helper(df, time)
+    return results
 
 
 def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False):
@@ -153,7 +192,7 @@ def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False):
                 ranges = helper.tir_helper(id_glc)
                 ranges.insert(0, id_var)
                 list_results.append(ranges)
-            results = pd.DataFrame(list_results, columns=['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo','TIR_norm',
+            results = pd.DataFrame(list_results, columns=['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm',
                                                           'TIR_hyper', 'TIR_lv1_hyper', 'TIR_lv2_hyper'])
         # exercise thresholds are selected
         # same as above but uses tir_exercise function with different thresholds
@@ -241,7 +280,7 @@ def glycemic_variability(df, glc='glc', ID=None):
     # if df has an id column, set has_id to either true or false
     if ID is not None:
         for id_var in set(df[ID].values):
-            id_glc = df.loc[df[ID] == id_var][glc] # added loc rather than slice
+            id_glc = df.loc[df[ID] == id_var][glc]  # added loc rather than slice
 
             mean = id_glc.mean()
             sd = id_glc.std()
@@ -298,9 +337,9 @@ def average_glucose(df, glc='glc', ID=None):
         return mean
 
 
-def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, breakdown=False, exercise_thresholds=False,
+def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, breakdown=False,
+                          exercise_thresholds=False,
                           interpolate=False, interp_method='pchip'):
-
     """
     Calculates the number of level 1 and level 2 hypoglycemic episodes from the glucose data in a Pandas DataFrame. The
     results can either be an overview of episodes or a breakdown of each episode with a start and end time. Threshold
@@ -350,9 +389,11 @@ def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, 
         # loop through all ids applying helper_hypo_episodes function, found in helper.py
         # returned in a multi-index format so need to select level
         results = df.groupby(ID).apply(
-            lambda group: helper.helper_hypo_episodes(group, time=time, glc=glc, gap_size=interval_size, breakdown=breakdown,
+            lambda group: helper.helper_hypo_episodes(group, time=time, glc=glc, gap_size=interval_size,
+                                                      breakdown=breakdown,
                                                       interpolate=interpolate, exercise=exercise_thresholds,
-                                                      interp_method=interp_method)).reset_index().drop(columns='level_1')
+                                                      interp_method=interp_method)).reset_index().drop(
+            columns='level_1')
         if exercise_thresholds & (breakdown is False):
             results.drop(columns=['number_lv1_hypos', 'number_lv2_hypos'], inplace=True)
             results.columns = ['ID', 'number_hypos_below_7', 'avg_length_hypo_below_7',
@@ -409,11 +450,12 @@ def percent_missing(df, time='time', glc='glc', ID=None, interval_size=5, start_
         for id_var in set(df[ID].values):
             id_time = df[df[ID] == id_var]
             list_results.append([id_var, helper.helper_missing(id_time, time, glc, gap_size=interval_size,
-                                                                 start_time=start_datetime,
-                                                                 end_time=end_datetime)])
+                                                               start_time=start_datetime,
+                                                               end_time=end_datetime)])
         df_results = pd.DataFrame(list_results,
                                   columns=['ID', 'percent_missing'])  # , 'start time', 'end time', 'interval'])
         return df_results
     else:
         return pd.DataFrame([helper.helper_missing(df, time, glc, gap_size=interval_size, start_time=start_datetime,
-                                                   end_time=end_datetime)], columns=['percent_missing'])  # , 'start time', 'end time', 'interval'])
+                                                   end_time=end_datetime)],
+                            columns=['percent_missing'])  # , 'start time', 'end time', 'interval'])

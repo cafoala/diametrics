@@ -2,13 +2,35 @@ import copy
 import pandas as pd
 import numpy as np
 import scipy
+from scipy import signal
 import warnings
 from datetime import timedelta
+import statistics
 
 warnings.filterwarnings('ignore')
 
 fift_mins = timedelta(minutes=15)
 thirt_mins = timedelta(minutes=30)
+
+def mage_helper(dataframe, time, glc):
+    '''
+    Calculates the mage using Scipy's signal class
+    '''
+    # Find peaks and troughs using scipy signal
+    peaks = signal.find_peaks(dataframe[glc],
+                                          prominence=dataframe[glc].std())
+    troughs = signal.find_peaks(-dataframe[glc],
+                                                   prominence=dataframe[glc].std())
+    # Create dataframe with peaks and troughs in order
+    single_indexes = dataframe.iloc[np.concatenate((peaks, troughs, [0, -1]))]
+    single_indexes.sort_values(time, inplace=True)
+    # Make a difference column between the peaks and troughs
+    single_indexes['diff'] = single_indexes[glc].diff()
+    # Calculate the positive and negative mage and mean
+    mage_positive = single_indexes[single_indexes['diff']>0]['diff'].mean()
+    mage_negative = single_indexes[single_indexes['diff']<0]['diff'].mean()
+    mean = statistics.mean([mage_positive, abs(mage_negative)])
+    return pd.DataFrame([[mage_positive, mage_negative, mean]], columns=['mage+', 'mage-', 'mage_mean'])
 
 
 def tir_helper(series):
