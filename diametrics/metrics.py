@@ -54,11 +54,24 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
     """
     df.dropna(subset=[time, glc], inplace=True)
     df.sort_values(time, inplace=True)
-    if df.empty:
-        raise Exception('Empty dataframe')
+
     df[time] = pd.to_datetime(df[time])
 
     id_bool = ID is not None
+    if df.empty & id_bool:
+        return pd.DataFrame([[np.nan]*20 + [100]], columns =
+                                      ['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm',
+       'TIR_hyper', 'TIR_lv1_hyper', 'TIR_lv2_hyper', 'number_hypos',
+       'avg_length_of_hypo', 'total_time_in_hypos', 'number_lv1_hypos',
+       'number_lv2_hypos', 'sd', 'cv', 'minimum_glucose', 'maximum_glucose',
+       'average_glucose', 'mage_mean', 'ea1c', 'percent_missing'])
+    elif df.empty & (not id_bool):
+        return pd.DataFrame([[np.nan]*19 + [100]],
+                            columns = ['TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm',
+       'TIR_hyper', 'TIR_lv1_hyper', 'TIR_lv2_hyper', 'number_hypos',
+       'avg_length_of_hypo', 'total_time_in_hypos', 'number_lv1_hypos',
+       'number_lv2_hypos', 'sd', 'cv', 'minimum_glucose', 'maximum_glucose',
+       'average_glucose', 'mage_mean', 'ea1c', 'percent_missing'])
     # by_day_id = True
     # if by_day breakdown selected, add the date to id
     if by_day & id_bool:
@@ -69,12 +82,12 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
         # by_day_id = False
 
     # calls all of functions in the package
-    hypos = hypoglycemic_episodes(df, time, glc, ID, interval_size=interval_size)
     tir = time_in_range(df, glc, ID)
     glc_var = glycemic_variability(df, glc, ID)
     mage_results = mage(df, time, glc, ID)
     avg = average_glucose(df, glc, ID)
     ea1c_val = ea1c(df, glc, ID)
+    hypos = hypoglycemic_episodes(df, time, glc, ID, interval_size=interval_size)
     perc_missing = percent_missing(df, time=time, glc=glc, ID=ID, interval_size=interval_size,
                                    start_datetime=start_time, end_datetime=end_time)
 
@@ -83,10 +96,10 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
         tir_ex = time_in_range(df, glc, ID, exercise_thresholds=True)
         hypos_ex = hypoglycemic_episodes(df, time, glc, ID, interval_size=interval_size, exercise_thresholds=True)
         # dataframes to concatenate
-        data_frames = [tir, tir_ex, hypos, hypos_ex, glc_var, avg, mage_results, perc_missing, ea1c_val]
+        data_frames = [tir, tir_ex, hypos, hypos_ex, glc_var, avg, mage_results, ea1c_val, perc_missing]
 
     else:
-        data_frames = [tir, hypos, glc_var, avg, mage_results, perc_missing, ea1c_val]
+        data_frames = [tir, hypos, glc_var, avg, mage_results, ea1c_val, perc_missing]
     # If ID column is present, merge all of the dataframes on ID
     if id_bool:
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=['ID'],
@@ -123,8 +136,8 @@ def mage(df, time='time', glc='glc', ID=None):
     """
     # Drop null values and raise exception if df is then empty
     df.dropna(subset=[time, glc], inplace=True)
-    if df.empty:
-        raise Exception('Empty dataframe')
+    '''if df.empty:
+        raise Exception('Empty dataframe')'''
     # Make time into datetime format and sort by it
     df[time] = pd.to_datetime(df[time])
     df.sort_values(time, inplace=True)
@@ -163,7 +176,7 @@ def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False):
     -------
     Pandas DataFrame.
         Returned results contain the time in hypoglycemia (level 1 and level 2 if exercise_threshold=False),
-        time in normal range, time in hyperglycemia (if exercise_threshold=False). If ID column is provided
+        time in normal range, time in hyperglycemSia (if exercise_threshold=False). If ID column is provided
         this will contain results for each ID.
 
     """
@@ -176,7 +189,7 @@ def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False):
 
     # check that there's readings in the df
     if df_len == 0:
-        raise Exception('Empty dataframe')
+        warnings.warn('Empty dataframe')
         # Throw some kind of error!!!???
 
     # if the df has an id column
@@ -241,8 +254,8 @@ def ea1c(df, glc='glc', ID=None):
     :return: Pandas DataFrame
         Contains ea1c and ID if present
     """
-    if df.empty:
-        raise Exception('Empty dataframe')
+    '''if df.empty:
+        raise Exception('Empty dataframe')'''
     list_results = []
     # loops through IDs calculating ea1c and returning
     if ID is not None:
@@ -320,8 +333,8 @@ def average_glucose(df, glc='glc', ID=None):
     :return: Pandas DataFrame
         Contains average glucose and ID if present
     """
-    if df.empty:
-        raise Exception('Empty dataframe')
+    '''if df.empty:
+        raise Exception('Empty dataframe')'''
 
     list_results = []
     # if df has an id column, set has_id to either true or false
@@ -334,12 +347,11 @@ def average_glucose(df, glc='glc', ID=None):
 
     else:
         mean = df[glc].mean()
-        return mean
+        return pd.DataFrame(mean, columns='average_glucose')
 
 
 def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, breakdown=False,
-                          exercise_thresholds=False,
-                          interpolate=False, interp_method='pchip'):
+                          exercise_thresholds=False, interpolate=False, interp_method='pchip'):
     """
     Calculates the number of level 1 and level 2 hypoglycemic episodes from the glucose data in a Pandas DataFrame. The
     results can either be an overview of episodes or a breakdown of each episode with a start and end time. Threshold
@@ -381,14 +393,14 @@ def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, 
         If breakdown is True, will return a breakdown of each episode with start time, end time, whether it is a level 2
         episode and the min glucose for each ID
     """
-    if df.empty:
-        raise Exception('Empty dataframe')
+    '''if df.empty:
+        raise Exception('Empty dataframe')'''
     # has an id column to loop through ids
     if ID is not None:
-        df[[ID, glc, time]].dropna(inplace=True)
+        df_dropped = df[[ID, glc, time]].dropna()
         # loop through all ids applying helper_hypo_episodes function, found in helper.py
         # returned in a multi-index format so need to select level
-        results = df.groupby(ID).apply(
+        results = df_dropped.groupby(ID).apply(
             lambda group: helper.helper_hypo_episodes(group, time=time, glc=glc, gap_size=interval_size,
                                                       breakdown=breakdown,
                                                       interpolate=interpolate, exercise=exercise_thresholds,
@@ -396,13 +408,13 @@ def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, 
             columns='level_1')
         if exercise_thresholds & (breakdown is False):
             results.drop(columns=['number_lv1_hypos', 'number_lv2_hypos'], inplace=True)
-            results.columns = ['ID', 'number_hypos_below_7', 'avg_length_hypo_below_7',
-                               'total_time_in_hypos_below_7']
+            results.columns = ['ID', 'number_hypos_below_5', 'avg_length_hypo_below_5',
+                               'total_time_in_hypos_below_5']
         return results
 
     else:
-        df[[glc, time]].dropna(inplace=True)
-        results = helper.helper_hypo_episodes(df, interpolate=interpolate, interp_method=interp_method,
+        df_dropped = df[[glc, time]].dropna()
+        results = helper.helper_hypo_episodes(df_dropped, interpolate=interpolate, interp_method=interp_method,
                                               exercise=exercise_thresholds, gap_size=interval_size, breakdown=breakdown)
         return results
 
@@ -436,26 +448,24 @@ def percent_missing(df, time='time', glc='glc', ID=None, interval_size=5, start_
         Contains percentage of missing data, start time, end time and interval size
     """
     if df.empty:
-        raise Exception('Empty dataframe')
+        return pd.DataFrame([[ID, 100]], columns=['ID', 'percent_missing'])
+        #raise Exception('Empty dataframe')
 
     df[time] = pd.to_datetime(df[time])
 
     # Some check that checks start_time and end_time are dt objects
     start_datetime = pd.to_datetime(start_datetime)
     end_datetime = pd.to_datetime(end_datetime)
-
     list_results = []
-
+    '''if df.empty:
+        return 100'''
     if ID is not None:
         for id_var in set(df[ID].values):
             id_time = df[df[ID] == id_var]
             list_results.append([id_var, helper.helper_missing(id_time, time, glc, gap_size=interval_size,
-                                                               start_time=start_datetime,
-                                                               end_time=end_datetime)])
-        df_results = pd.DataFrame(list_results,
-                                  columns=['ID', 'percent_missing'])  # , 'start time', 'end time', 'interval'])
+                                                               start_time=start_datetime, end_time=end_datetime)])
+        df_results = pd.DataFrame(list_results, columns=['ID', 'percent_missing'])
         return df_results
     else:
         return pd.DataFrame([helper.helper_missing(df, time, glc, gap_size=interval_size, start_time=start_datetime,
-                                                   end_time=end_datetime)],
-                            columns=['percent_missing'])  # , 'start time', 'end time', 'interval'])
+                                                   end_time=end_datetime)], columns=['percent_missing'])
