@@ -34,7 +34,7 @@ def mage_helper(dataframe, time, glc):
     elif pd.notnull(mage_negative):
         mage_mean = abs(mage_negative)
     else:
-        mage_mean = np.nan
+        mage_mean = 0 #np.nan
     return pd.DataFrame([[mage_mean]], columns=['mage_mean'])
 
 
@@ -230,8 +230,10 @@ def helper_hypo_episodes(df, time, glc, breakdown, gap_size, interpolate, interp
 
 def lv2_calc(df, time, glc):
     """
-    Determines whether a hypoglycaemic episode is a level 2 hypoglycaemic episode. Lv2 is when glc drops below
-    3.0mmol/L for at least 15 consecutive mins
+    Determines whether a hypoglycaemic episode is a level 2 hypoglycaemic
+    episode. Lv2 is when glc drops below 3.0mmol/L for at least 15 consecutive 
+    mins
+   
     """
     # lv2 is false unless proven otherwise
     lv2 = False
@@ -275,15 +277,26 @@ def helper_missing(df, time, glc, gap_size, start_time, end_time):
     cut_df = df.loc[(df[time] >= start_time) & (df[time] <= end_time)]
     df_resampled = cut_df.drop_duplicates(subset='time').set_index('time').resample(rule='min', origin='start').asfreq()
     df_resampled['interp'] = df_resampled[glc].interpolate(method='zero', limit_area='inside',
-                                                           limit_direction='forward', limit=gap_size)
-    total_readings = df_resampled.shape[0]
+                                                           limit_direction='forward', limit=gap_size-1)
+    df_resampled = df_resampled.append([df_resampled.iloc[-1]]*4, ignore_index=True)
+    #df_resampled = df_resampled[:-1] #.drop(index=df_resampled.iloc[-1].index, inplace=True)
+    print(df_resampled)
+    total_readings = df_resampled.shape[0] #cut_df.shape[0]
     non_null = df_resampled.loc[pd.notnull(df_resampled['interp'])].shape[0]
-    if (total_readings == 0) | (non_null == 0):
-        return 100
+    #non_null = cut_df.shape[0]
     # calculate number of total readings
     #total_minutes = (end_time - start_time).total_seconds()/60
-    #total_readings = total_minutes/gap_size
-
-    perc_missing = 100*(total_readings-non_null)/total_readings
-
+    #total_readings = 1+total_minutes/gap_size
+    #print(total_readings)
+    
+    if (total_readings == 0) | (non_null == 0):
+        return 100
+    nulls = total_readings-non_null
+    
+    perc_missing = 100*nulls/total_readings
+    
+    if perc_missing<0:
+        perc_missing = 0
+    elif perc_missing>100:
+        perc_missing = 100
     return perc_missing
