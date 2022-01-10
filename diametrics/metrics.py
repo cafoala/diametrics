@@ -60,11 +60,15 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
     id_bool = ID is not None
     if df.empty & id_bool:
         return pd.DataFrame([[np.nan]*20 + [100]], columns =
-                                      ['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm',
-       'TIR_hyper', 'TIR_lv1_hyper', 'TIR_lv2_hyper', 'number_hypos',
-       'avg_length_of_hypo', 'total_time_in_hypos', 'number_lv1_hypos',
-       'number_lv2_hypos', 'sd', 'cv', 'minimum_glucose', 'maximum_glucose',
-       'average_glucose', 'mage_mean', 'ea1c', 'percent_missing'])
+                                      ['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo',
+                                       'TIR_hypo', 'TIR_norm', 'TIR_hyper',
+                                       'TIR_lv1_hyper', 'TIR_lv2_hyper',
+                                       'number_hypos', 'avg_length_of_hypo',
+                                       'total_time_in_hypos',
+                                       'number_lv1_hypos', 'number_lv2_hypos',
+                                      'sd', 'cv', 'minimum_glucose',
+                                      'maximum_glucose', 'average_glucose',
+                                      'mage_mean', 'ea1c', 'percent_missing'])
     elif df.empty & (not id_bool):
         return pd.DataFrame([[np.nan]*19 + [100]],
                             columns = ['TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm',
@@ -136,6 +140,8 @@ def mage(df, time='time', glc='glc', ID=None):
     """
     # Drop null values and raise exception if df is then empty
     df.dropna(subset=[time, glc], inplace=True)
+    df = df.loc[:,[ID, time, glc]]
+    df.columns = ['ID', time, glc]
     '''if df.empty:
         raise Exception('Empty dataframe')'''
     # Make time into datetime format and sort by it
@@ -143,7 +149,7 @@ def mage(df, time='time', glc='glc', ID=None):
     df.sort_values(time, inplace=True)
     # Call the mage_helper function for all IDs with groupby
     if ID is not None:
-        results = df.groupby(ID).apply(lambda group: helper.mage_helper(group, time, glc)).reset_index().drop(
+        results = df.groupby('ID').apply(lambda group: helper.mage_helper(group, time, glc)).reset_index().drop(
             columns='level_1')
     # Call mage_helper for just the 1 ID
     else:
@@ -398,9 +404,10 @@ def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, 
     # has an id column to loop through ids
     if ID is not None:
         df_dropped = df[[ID, glc, time]].dropna()
+        df_dropped.columns = ['ID', glc, time]
         # loop through all ids applying helper_hypo_episodes function, found in helper.py
         # returned in a multi-index format so need to select level
-        results = df_dropped.groupby(ID).apply(
+        results = df_dropped.groupby('ID').apply(
             lambda group: helper.helper_hypo_episodes(group, time=time, glc=glc, gap_size=interval_size,
                                                       breakdown=breakdown,
                                                       interpolate=interpolate, exercise=exercise_thresholds,
@@ -416,6 +423,7 @@ def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, 
         df_dropped = df[[glc, time]].dropna()
         results = helper.helper_hypo_episodes(df_dropped, interpolate=interpolate, interp_method=interp_method,
                                               exercise=exercise_thresholds, gap_size=interval_size, breakdown=breakdown)
+        #results = results.rename(columns={ID: 'ID'})
         return results
 
 
@@ -464,8 +472,8 @@ def percent_missing(df, time='time', glc='glc', ID=None, interval_size=5, start_
             id_time = df[df[ID] == id_var]
             list_results.append([id_var, helper.helper_missing(id_time, time, glc, gap_size=interval_size,
                                                                start_time=start_datetime, end_time=end_datetime)])
-        df_results = pd.DataFrame(list_results, columns=['ID', 'percent_missing'])
+        df_results = pd.DataFrame(list_results, columns=['ID', 'percent_missing']).round(2)
         return df_results
     else:
         return pd.DataFrame([helper.helper_missing(df, time, glc, gap_size=interval_size, start_time=start_datetime,
-                                                   end_time=end_datetime)], columns=['percent_missing'])
+                                                   end_time=end_datetime)], columns=['percent_missing']).round(2)
