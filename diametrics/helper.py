@@ -6,12 +6,15 @@ from scipy import signal
 import warnings
 from datetime import timedelta
 import statistics
+from sklearn.metrics import auc
 
 warnings.filterwarnings('ignore')
 
 fift_mins = timedelta(minutes=15)
 thirt_mins = timedelta(minutes=30)
 
+def auc_helper(dataframe, time, glc):
+    return auc(dataframe[time], dataframe[glc])
 def mage_helper(dataframe, time, glc):
     '''
     Calculates the mage using Scipy's signal class
@@ -34,7 +37,7 @@ def mage_helper(dataframe, time, glc):
     elif pd.notnull(mage_negative):
         mage_mean = abs(mage_negative)
     else:
-        mage_mean = 0 #np.nan
+        mage_mean = 0  # np.nan
     return pd.DataFrame([[mage_mean]], columns=['mage_mean'])
 
 
@@ -52,27 +55,24 @@ def tir_helper(series):
 
     tir_norm = (series.loc[(series >= 3.9) & (series <= 10)]).size * 100 / df_len
 
+    tir_norm_1 = (series.loc[(series >= 3.9) & (series <= 7.8)]).size * 100 / df_len
+
+    tir_norm_2 = (series.loc[(series >= 7.8) & (series <= 10)]).size * 100 / df_len
+
     tir_hyper = series.loc[series > 10].size * 100 / df_len
 
     tir_lv1_hyper = (series.loc[(series <= 13.9) & (series > 10)]).size * 100 / df_len
 
     tir_lv2_hyper = series.loc[series > 13.9].size * 100 / df_len
 
-    return [tir_lv2_hypo, tir_lv1_hypo, tir_hypo, tir_norm, tir_hyper, tir_lv1_hyper, tir_lv2_hyper]
-
-
-def tir_exercise(series):
-    """
-    Helper function for time in range calculation with exercise thresholds. Same process as function above.
-    """
-    df_len = series.size
     tir_hypo_ex = series.loc[series < 5].size * 100 / df_len
 
-    tir_norm_ex = (series.loc[(series >= 5) & (series <= 12)]).size * 100 / df_len
+    tir_norm_ex = (series.loc[(series >= 5) & (series <= 15)]).size * 100 / df_len
 
-    tir_hyper_ex = series.loc[series > 12].size * 100 / df_len
+    tir_hyper_ex = series.loc[series > 15].size * 100 / df_len
 
-    return [tir_hypo_ex, tir_norm_ex, tir_hyper_ex]
+    return [tir_lv2_hypo, tir_lv1_hypo, tir_hypo, tir_norm, tir_hyper, tir_lv1_hyper, tir_lv2_hyper, tir_norm_1,
+            tir_norm_2, tir_hypo_ex, tir_norm_ex, tir_hyper_ex]
 
 
 def helper_hypo_episodes(df, time, glc, breakdown, gap_size, interpolate, interp_method, exercise):
@@ -91,13 +91,13 @@ def helper_hypo_episodes(df, time, glc, breakdown, gap_size, interpolate, interp
         df.set_index(time, inplace=True)
         df = df.resample(rule='min', origin='start').asfreq()
         df[glc] = df[glc].interpolate(method=interp_method, limit_area='inside',
-                                          limit_direction='forward', limit=gap_size)
+                                      limit_direction='forward', limit=gap_size)
         df.reset_index(inplace=True)
-        gap_size=1
+        gap_size = 1
 
     # set a boolean array where glc goes below 3.9, unless exercise thresholds are set then it's 7
     if exercise:
-        bool_array = df[glc] < 5
+        bool_array = df[glc] < 7
     else:
         bool_array = df[glc] < 3.9
     # gives a consecutive unique number to every bout below 3.9
@@ -205,9 +205,9 @@ def helper_hypo_episodes(df, time, glc, breakdown, gap_size, interpolate, interp
     avg_length = duration.mean()
     total_time_hypo = duration.sum()
     if pd.notnull(avg_length):
-        avg_length = avg_length.total_seconds()/60
-        total_time_hypo = total_time_hypo.total_seconds()/60
-    elif number_hypos==0:
+        avg_length = avg_length.total_seconds() / 60
+        total_time_hypo = total_time_hypo.total_seconds() / 60
+    elif number_hypos == 0:
         avg_length = 0
         total_time_hypo = 0
     else:
@@ -215,7 +215,7 @@ def helper_hypo_episodes(df, time, glc, breakdown, gap_size, interpolate, interp
         total_time_hypo = np.nan
 
     number_lv2_hypos = results[results['lv2']].shape[0]
-    number_lv1_hypos = number_hypos-number_lv2_hypos
+    number_lv1_hypos = number_hypos - number_lv2_hypos
 
     # if breakdown hasn't been selected, return overview statistics
     if not breakdown:
@@ -269,20 +269,36 @@ def helper_missing(df, time, glc, gap_size, start_time, end_time):
         return 100
 
     # calculate the missing data based on start and end of df
-    if (start_time is None) | (end_time is None):
+    if start_time is None:
         start_time = df[time].iloc[0]
+    if end_time is None:
         end_time = df[time].iloc[-1]
 
     # calculate the number of non-null values
     cut_df = df.loc[(df[time] >= start_time) & (df[time] <= end_time)]
+    # print(cut_df)
+    if gap_size == 5:
+        freq = '5min'
+    else:
+        freq = '15min'
+    number_readings = sum(cut_df.set_index(time).groupby(pd.Grouper(freq=freq)).count()[glc] > 0)
+    time_diff = (end_time - start_time)
+    total_readings = time_diff.total_seconds() / (60 * gap_size)
+    if number_readings >= total_readings:
+        perc_missing = 0
+    else:
+        perc_missing = (total_readings - number_readings) * 100 / total_readings
+    '''
     df_resampled = cut_df.drop_duplicates(subset='time').set_index('time').resample(rule='min', origin='start').asfreq()
     df_resampled['interp'] = df_resampled[glc].interpolate(method='zero', limit_area='inside',
-                                                           limit_direction='forward', limit=gap_size-1)
-    df_resampled = df_resampled.append([df_resampled.iloc[-1]]*4, ignore_index=True)
+                                                           limit_direction='forward', limit=gap_size)
+    #df_resampled = df_resampled.append([df_resampled.iloc[-1]]*(gap_size-1), ignore_index=True)
     #df_resampled = df_resampled[:-1] #.drop(index=df_resampled.iloc[-1].index, inplace=True)
-    print(df_resampled)
     total_readings = df_resampled.shape[0] #cut_df.shape[0]
-    non_null = df_resampled.loc[pd.notnull(df_resampled['interp'])].shape[0]
+    non_null = df_resampled.dropna(subset=['interp']).shape[0]
+    #non_null = df_resampled.loc[pd.notnull(df_resampled['interp'])].shape[0]
+    print(df_resampled)
+    print(non_null)
     #non_null = cut_df.shape[0]
     # calculate number of total readings
     #total_minutes = (end_time - start_time).total_seconds()/60
@@ -294,9 +310,7 @@ def helper_missing(df, time, glc, gap_size, start_time, end_time):
     nulls = total_readings-non_null
     
     perc_missing = 100*nulls/total_readings
-    
-    if perc_missing<0:
-        perc_missing = 0
-    elif perc_missing>100:
+    '''
+    if perc_missing > 100:
         perc_missing = 100
     return perc_missing

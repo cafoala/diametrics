@@ -17,7 +17,7 @@ thirt_mins = time(minutes=30)
 
 
 def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time=None, end_time=None, by_day=False,
-                exercise_thresholds=False):
+                exercise_thresholds=False, norm_break=False):
     """
     Calculates all available CGM metrics in one go. Time in range, hypoglycemic episodes, average glucose, glycemic
     variability and ea1c.
@@ -86,7 +86,7 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
         # by_day_id = False
 
     # calls all of functions in the package
-    tir = time_in_range(df, glc, ID)
+    tir = time_in_range(df, glc, ID, norm_break=norm_break)
     glc_var = glycemic_variability(df, glc, ID)
     mage_results = mage(df, time, glc, ID)
     avg = average_glucose(df, glc, ID)
@@ -118,6 +118,23 @@ def all_metrics(df, time='time', glc='glc', ID=None, interval_size=5, start_time
 
     return df_merged
 
+def auc(df, time='time', glc='glc', ID=None):
+    df.dropna(subset=[time, glc], inplace=True)
+    df = df.loc[:, [ID, time, glc]]
+    df.columns = ['ID', time, glc]
+    '''if df.empty:
+        raise Exception('Empty dataframe')'''
+    # Make time into datetime format and sort by it
+    df[time] = pd.to_datetime(df[time])
+    df.sort_values(time, inplace=True)
+    # Call the mage_helper function for all IDs with groupby
+    if ID is not None:
+        results = df.groupby('ID').apply(lambda group: helper.auc_helper(group, time, glc)).reset_index().drop(
+            columns='level_1')
+    # Call mage_helper for just the 1 ID
+    else:
+        results = helper.auc_helper(df, time)
+    return results
 
 def mage(df, time='time', glc='glc', ID=None):
     """
@@ -157,7 +174,7 @@ def mage(df, time='time', glc='glc', ID=None):
     return results
 
 
-def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False):
+def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False, norm_break=False):
     """
     Calculates the time in range for various set ranges option to select exercise thresholds which are
     different to regular thresholds, can be used on a dataset from a single person or combined dataset
@@ -205,16 +222,31 @@ def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False):
         # tir_helper is in helper.py
         # add the resulting list to the results along with the ID, convert to dataframe and return
 
-        if not exercise_thresholds:
-            for id_var in set(df[ID].values):
-                id_glc = df.loc[df[ID] == id_var][glc]
-                ranges = helper.tir_helper(id_glc)
-                ranges.insert(0, id_var)
-                list_results.append(ranges)
-            results = pd.DataFrame(list_results, columns=['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm',
-                                                          'TIR_hyper', 'TIR_lv1_hyper', 'TIR_lv2_hyper'])
+
+        for id_var in set(df[ID].values):
+            id_glc = df.loc[df[ID] == id_var][glc]
+            ranges = helper.tir_helper(id_glc)
+            ranges.insert(0, id_var)
+            list_results.append(ranges)
+        results = pd.DataFrame(list_results, columns=['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm',
+                                                     'TIR_hyper', 'TIR_lv1_hyper', 'TIR_lv2_hyper', 'TIR_norm_1',
+                                                      'TIR_norm_2', 'TIR_hypo_exercise', 'TIR_normal_exercise',
+                                                      'TIR_hyper_exercise'])
+        if norm_break:
+            return results[['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm', 'TIR_hyper', 'TIR_lv1_hyper',
+                            'TIR_lv2_hyper', 'TIR_norm_1', 'TIR_norm_2']]
+        elif not exercise_thresholds:
+                return results[['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm', 'TIR_hyper',
+                                'TIR_lv1_hyper', 'TIR_lv2_hyper']]
+        else:
+            return results[['ID', 'TIR_hypo_exercise', 'TIR_normal_exercise', 'TIR_hyper_exercise']]
+
+                #ranges = helper.tir_norm_break(id_glc)
+                #ranges.insert(0, id_var)
+
         # exercise thresholds are selected
         # same as above but uses tir_exercise function with different thresholds
+        '''
         else:
             for id_var in set(df[ID].values):
                 id_glc = df.loc[df[ID] == id_var][glc]
@@ -224,7 +256,7 @@ def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False):
 
             results = pd.DataFrame(list_results, columns=['ID', 'TIR_hypo_exercise', 'TIR_normal_exercise',
                                                           'TIR_hyper_exercise'])
-
+        '''
     # df doesn't have an id column
     else:
         # normal thresholds
