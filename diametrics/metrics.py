@@ -388,8 +388,7 @@ def average_glucose(df, glc='glc', ID=None):
         return pd.DataFrame(mean, columns='average_glucose')
 
 
-def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, breakdown=False,
-                          exercise_thresholds=False, interpolate=False, interp_method='pchip'):
+def hypoglycemic_episodes(df, time='time', glc='glc', ID=None):
     """
     Calculates the number of level 1 and level 2 hypoglycemic episodes from the glucose data in a Pandas DataFrame. The
     results can either be an overview of episodes or a breakdown of each episode with a start and end time. Threshold
@@ -436,25 +435,18 @@ def hypoglycemic_episodes(df, time='time', glc='glc', ID=None, interval_size=5, 
     # has an id column to loop through ids
     if ID is not None:
         df_dropped = df[[ID, glc, time]].dropna()
-        df_dropped.columns = ['ID', glc, time]
+        df_dropped.columns = [ID, glc, time]
         # loop through all ids applying helper_hypo_episodes function, found in helper.py
         # returned in a multi-index format so need to select level
-        results = df_dropped.groupby('ID').apply(
-            lambda group: helper.helper_hypo_episodes(group, time=time, glc=glc, gap_size=interval_size,
-                                                      breakdown=breakdown,
-                                                      interpolate=interpolate, exercise=exercise_thresholds,
-                                                      interp_method=interp_method)).reset_index().drop(
+        results = df_dropped.groupby(ID).apply(
+            lambda group: helper.number_of_hypos(group, time=time, glc=glc)).reset_index().drop(
             columns='level_1')
-        if exercise_thresholds & (breakdown is False):
-            results.drop(columns=['number_lv1_hypos', 'number_lv2_hypos'], inplace=True)
-            results.columns = ['ID', 'number_hypos_below_5', 'avg_length_hypo_below_5',
-                               'total_time_in_hypos_below_5']
+        
         return results
 
     else:
         df_dropped = df[[glc, time]].dropna()
-        results = helper.helper_hypo_episodes(df_dropped, interpolate=interpolate, interp_method=interp_method,
-                                              exercise=exercise_thresholds, gap_size=interval_size, breakdown=breakdown)
+        results = helper.number_of_hypos(df_dropped, time='time', glc='glc')
         #results = results.rename(columns={ID: 'ID'})
         return results
 
