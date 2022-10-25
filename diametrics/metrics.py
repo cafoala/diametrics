@@ -174,7 +174,7 @@ def mage(df, time='time', glc='glc', ID=None):
     return results
 
 
-def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False, norm_break=False):
+def time_in_range(df):
     """
     Calculates the time in range for various set ranges option to select exercise thresholds which are
     different to regular thresholds, can be used on a dataset from a single person or combined dataset
@@ -184,17 +184,6 @@ def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False, norm_break=
     ----------
     df : Pandas DataFrame
         Glucose monitor time series, must contain columns titled 'time' and 'glc', 'ID' optional
-
-    glc : String
-        Name of column with glucose data
-
-    ID : String
-        Name of column with patient ID (optional)
-
-    exercise_thresholds : Bool
-        Sets the thresholds for time in range to exercise, <7 for hypoglycemia and >15 for hyperglycemia
-
-
     Returns
     -------
     Pandas DataFrame.
@@ -203,80 +192,26 @@ def time_in_range(df, glc='glc', ID=None, exercise_thresholds=False, norm_break=
         this will contain results for each ID.
 
     """
-    # create a list to add the results to
-    list_results = []
-    # drop any null values in the glc column
-    df = df.dropna(subset=[glc])
-    # calculate the total number of readings
-    df_len = df.shape[0]
+    if check_df(df):
+        # create a list to add the results to
+        list_results = []
 
-    # check that there's readings in the df
-    if df_len == 0:
-        warnings.warn('Empty dataframe')
-        # Throw some kind of error!!!???
-
-    # if the df has an id column
-    if ID is not None:
-        # exercise thresholds aren't selected
         # loop through all of the IDs making slice of dataframe then run through the tir_helper function
         # tir_helper is in helper.py
         # add the resulting list to the results along with the ID, convert to dataframe and return
-
-
-        for id_var in set(df[ID].values):
-            id_glc = df.loc[df[ID] == id_var][glc]
+        for id_var in set(df['ID'].values):
+            id_glc = df.loc[df['ID'] == id_var]['glc']
             ranges = helper.tir_helper(id_glc)
             ranges.insert(0, id_var)
             list_results.append(ranges)
-        results = pd.DataFrame(list_results, columns=['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm',
-                                                     'TIR_hyper', 'TIR_lv1_hyper', 'TIR_lv2_hyper', 'TIR_norm_1',
-                                                      'TIR_norm_2', 'TIR_hypo_exercise', 'TIR_normal_exercise',
-                                                      'TIR_hyper_exercise'])
-        if norm_break:
-            return results[['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm', 'TIR_hyper', 'TIR_lv1_hyper',
-                            'TIR_lv2_hyper', 'TIR_norm_1', 'TIR_norm_2']]
-        elif not exercise_thresholds:
-                return results[['ID', 'TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo', 'TIR_norm', 'TIR_hyper',
-                                'TIR_lv1_hyper', 'TIR_lv2_hyper']]
-        else:
-            return results[['ID', 'TIR_hypo_exercise', 'TIR_normal_exercise', 'TIR_hyper_exercise']]
+        results = pd.DataFrame(list_results, columns=['ID', 'tir_norm', 'tir_hypo', 'tir_lv1_hypo', 'tir_lv2_hypo', 'tir_hyper', 'tir_lv1_hyper', 'tir_lv2_hyper'])
 
-                #ranges = helper.tir_norm_break(id_glc)
-                #ranges.insert(0, id_var)
-
-        # exercise thresholds are selected
-        # same as above but uses tir_exercise function with different thresholds
-        '''
-        else:
-            for id_var in set(df[ID].values):
-                id_glc = df.loc[df[ID] == id_var][glc]
-                ranges = helper.tir_exercise(id_glc)
-                ranges.insert(0, id_var)
-                list_results.append(ranges)
-
-            results = pd.DataFrame(list_results, columns=['ID', 'TIR_hypo_exercise', 'TIR_normal_exercise',
-                                                          'TIR_hyper_exercise'])
-        '''
-    # df doesn't have an id column
+        return results
     else:
-        # normal thresholds
-        # same as 1st block, just need to run for once rather than for all IDs
-        if not exercise_thresholds:
-            list_results.append([helper.tir_helper(df[glc])])
-            results = pd.DataFrame(list_results,
-                                   columns=['TIR_lv2_hypo', 'TIR_lv1_hypo', 'TIR_hypo',
-                                            'TIR_norm', 'TIR_hyper',
-                                            'TIR_lv1_hyper', 'TIR_lv2_hyper'])
-        # exercise thresholds
-        # same as 2nd block but only need to run once
-        else:
-            list_results.append(helper.tir_exercise(df[glc]))
-            results = pd.DataFrame(list_results, columns=['TIR_hypo_exercise', 'TIR_normal_exercise',
-                                                          'TIR_hyper_exercise'])
-    return results
+        print('EXPLODE THE PROGRAM')
 
 
-def ea1c(df, glc='glc', ID=None):
+def ea1c(df):
     """
     Calculates ea1c for glucose data from a Pandas Dataframe. The dataframe must contain  works for df with an ID column
     or without.
@@ -408,21 +343,8 @@ def hypoglycemic_episodes(df, time='time', glc='glc', ID=None):
     :param ID : String
         Name of column with patient ID (optional)
 
-    :param interval_size: Int
-        The length of time between glucose readings
-
-    :param exercise_thresholds: Bool
-        Whether exercise threshold (<7mmol/L) should be used to determine a hypoglycemic episode. If False, regular
-        thresholds of 3.9mmol/L and 3mmol/L will be used to determine level 1 and level 2 episodes.
-
     :param breakdown: Bool
         Whether an episode by episode breakdown of the results should be returned or an overview of episodes for each ID
-
-    :param interpolate: Bool
-        Whether the data should be interpolated before the hypoglycemic episodes are calculated
-
-    :param interp_method:
-        The interpolation method used if interpolation is True
 
     :return: Pandas DataFrame
         If breakdown is False, will return an overview with the number of hypoglycemic episodes (level 1 & 2 or

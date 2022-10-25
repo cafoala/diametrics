@@ -8,13 +8,31 @@ from datetime import timedelta
 import statistics
 from sklearn.metrics import auc
 
-warnings.filterwarnings('ignore')
-
 fift_mins = timedelta(minutes=15)
 thirt_mins = timedelta(minutes=30)
 
+
+def check_df(df):
+    '''
+    Check if the file given is a valid dataframe
+    '''
+    if not isinstance(df, pd.DataFrame):
+        # I want to return this info to user somehow??
+        warnings.warn('Not a dataframe')
+        return False
+    else:
+        # drop any null values in the glc column
+        df = df.dropna(subset=['time', 'glc'])
+        if df.empty:
+            warnings.warn('Empty dataframe')
+            return False
+        else:
+            return True
+
+
 def auc_helper(dataframe, time, glc):
     return auc(dataframe[time], dataframe[glc])
+
 def mage_helper(dataframe, time, glc):
     '''
     Calculates the mage using Scipy's signal class
@@ -40,6 +58,8 @@ def mage_helper(dataframe, time, glc):
         mage_mean = 0  # np.nan
     return pd.DataFrame([[mage_mean]], columns=['mage_mean'])
 
+def convert_to_rounded_percent(value, length):
+    return round(value * 100 / length, 2)
 
 def tir_helper(series):
     """
@@ -47,32 +67,31 @@ def tir_helper(series):
     each threshold by divSiding number of readings within range by total length of series
     """
     df_len = series.size
-    tir_hypo = series.loc[series < 3.9].size * 100 / df_len
+    tir_hypo = convert_to_rounded_percent(series.loc[series < 3.9].size, df_len)
 
-    tir_lv1_hypo = (series.loc[(series < 3.9) & (series >= 3)]).size * 100 / df_len
+    tir_lv1_hypo = convert_to_rounded_percent(series.loc[(series < 3.9) & (series >= 3)].size, df_len)
 
-    tir_lv2_hypo = series.loc[series < 3].size * 100 / df_len
+    tir_lv2_hypo = convert_to_rounded_percent(series.loc[series < 3].size, df_len)
 
-    tir_norm = (series.loc[(series >= 3.9) & (series <= 10)]).size * 100 / df_len
+    tir_norm = convert_to_rounded_percent(series.loc[(series >= 3.9) & (series <= 10)].size, df_len)
+    
+    tir_hyper = convert_to_rounded_percent(series.loc[series > 10].size, df_len)
 
-    tir_norm_1 = (series.loc[(series >= 3.9) & (series <= 7.8)]).size * 100 / df_len
+    tir_lv1_hyper = convert_to_rounded_percent(series.loc[(series <= 13.9) & (series > 10)].size, df_len)
 
-    tir_norm_2 = (series.loc[(series >= 7.8) & (series <= 10)]).size * 100 / df_len
+    tir_lv2_hyper = convert_to_rounded_percent(series.loc[series > 13.9].size, df_len)
+    '''
+    tir_norm_1 = (series.loc[(series >= 3.9) & (series <= 7.8)]).size, df_len)
 
-    tir_hyper = series.loc[series > 10].size * 100 / df_len
+    tir_norm_2 = (series.loc[(series >= 7.8) & (series <= 10)]).size, df_len)
+    
+    tir_hypo_ex = series.loc[series < 5].size, df_len)
 
-    tir_lv1_hyper = (series.loc[(series <= 13.9) & (series > 10)]).size * 100 / df_len
+    tir_norm_ex = (series.loc[(series >= 5) & (series <= 15)]).size, df_len)
 
-    tir_lv2_hyper = series.loc[series > 13.9].size * 100 / df_len
-
-    tir_hypo_ex = series.loc[series < 5].size * 100 / df_len
-
-    tir_norm_ex = (series.loc[(series >= 5) & (series <= 15)]).size * 100 / df_len
-
-    tir_hyper_ex = series.loc[series > 15].size * 100 / df_len
-
-    return [tir_lv2_hypo, tir_lv1_hypo, tir_hypo, tir_norm, tir_hyper, tir_lv1_hyper, tir_lv2_hyper, tir_norm_1,
-            tir_norm_2, tir_hypo_ex, tir_norm_ex, tir_hyper_ex]
+    tir_hyper_ex = series.loc[series > 15].size, df_len)
+    '''
+    return [tir_norm, tir_hypo, tir_lv1_hypo, tir_lv2_hypo, tir_hyper, tir_lv1_hyper, tir_lv2_hyper]
 
 def number_of_hypos(df, time='time', glc='glc'):
     '''
