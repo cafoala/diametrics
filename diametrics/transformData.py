@@ -1,12 +1,14 @@
 import pandas as pd
 import autoprocessing
+import checkDevices
 
-class preprocessing:
+class transformData:
     def __init__(self, df):
         self.usable = False
         self.device = 'Unknown'
         self.interval = None
         self.data = None
+        self.id = None
         
         if self.assert_flash_libre(df):
             self.convert_flash_libre(df)

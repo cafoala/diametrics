@@ -192,7 +192,7 @@ def time_in_range(df):
         this will contain results for each ID.
 
     """
-    if check_df(df):
+    if helper.check_df(df):
         # create a list to add the results to
         list_results = []
 
@@ -200,6 +200,7 @@ def time_in_range(df):
         # tir_helper is in helper.py
         # add the resulting list to the results along with the ID, convert to dataframe and return
         for id_var in set(df['ID'].values):
+            df.dropna(subset=['glc'], inplace=True)
             id_glc = df.loc[df['ID'] == id_var]['glc']
             ranges = helper.tir_helper(id_glc)
             ranges.insert(0, id_var)
