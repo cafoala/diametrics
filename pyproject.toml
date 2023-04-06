@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "diametrics"
+version = "0.0.12"
+authors = [
+  { name="Catherine Russon", email="catherine.russon@gmail.com" },
+]
+description = "A package for calculating the metrics of glycemic control for Diabetes from CGM data"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pandas ~= 2.0.0",
+    "numpy ~= 1.24.2",
+    "scipy ~= 1.10.1",
+    "scikit-learn ~= 1.2.2",
+    "statistics ~= 1.0.3.5"
+  ]
+
+[project.urls]
+"Homepage" = "https://github.com/cafoala/diametrics"
+"Bug Tracker" = "https://github.com/cafoala/diametrics/issues"
