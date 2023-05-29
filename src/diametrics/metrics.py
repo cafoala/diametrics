@@ -15,20 +15,20 @@ from src.diametrics import _glycemic_events_helper
 fift_mins = timedelta(minutes=15)
 thirt_mins = timedelta(minutes=30)
 
-def all_metrics(dm_obj, return_df=True,units='mmol/L', additional_tirs=None, lv1_hypo=3.9, lv2_hypo=3.0, lv1_hyper=10, lv2_hyper=13.9,  event_mins=15, event_long_mins=120):    
+def all_metrics(df, return_df=True,units='mmol/L', interval=15, additional_tirs=None, lv1_hypo=3.9, lv2_hypo=3.0, lv1_hyper=10, lv2_hyper=13.9,  event_mins=15, event_long_mins=120):    
     factor = 0.0557
-    if check_df(dm_obj.data):
+    if check_df(df):
         # create a list to add the results to
         results = {}#{'ID': ID}
         results_mg = {}#{'ID': ID}
-        df = dm_obj.data.dropna(subset=['time', 'glc']).reset_index(drop=True)
+        df = df.dropna(subset=['time', 'glc']).reset_index(drop=True)
         
         # Convert to mmol/L
         if units == 'mg/dL':
             df['glc'] = df['glc']*factor
         
         # Amount of data available
-        data_suff = data_sufficiency(df,  gap_size=dm_obj.interval)
+        data_suff = data_sufficiency(df,  gap_size=interval)
         data_suff['Days'] = str(pd.to_datetime(data_suff['End DateTime']) - pd.to_datetime(data_suff['Start DateTime']))
 
         results.update(data_suff)
@@ -123,7 +123,7 @@ def auc(df):
     hourly_breakdown = df.groupby([df.date, df.hour]).apply(lambda group: calculate_auc(group)).reset_index()
     hourly_breakdown.columns = ['date', 'hour', 'auc']
     daily_breakdown = hourly_breakdown.groupby('date').auc.mean()
-    hourly_avg = hourly_breakdown.auc.mean()
+    hourly_avg = hourly_breakdown['auc'].mean()
     #daily_auc = df.groupby(df['time'].dt.date).apply(lambda group: calculate_auc(group))/24 # .reset_index()
     #daily_avg = daily_auc.mean()
     return  hourly_avg, daily_breakdown, hourly_breakdown 
