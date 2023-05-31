@@ -18,12 +18,11 @@ def open_file(filepath):
     except Exception as e:
         print(e)
 
-def convert_flash_libre(df):
+def convert_libre(df):
+    # Set third row as column headers
+    df.columns = df.iloc[2]
     # Drop top rows
-    df = df.iloc[1:]
-    # Set first row as column headers
-    df.columns = df.iloc[0]
-    df.drop(index=[1], inplace=True)
+    df = df.iloc[3:]
     df.reset_index(inplace=True, drop=True)
     # Keep important columns
     if 'Historic Glucose(mmol/L)' in df.columns:
@@ -37,6 +36,9 @@ def convert_flash_libre(df):
 
     # Rename cols
     df.columns = ['time', 'glc', 'scan_glc']
+    
+    # Convert to datetime
+    df['time'] = pd.to_datetime(df['time'])
     return df
 
 
@@ -62,6 +64,8 @@ def convert_dexcom(df):
     
     # Rename cols
     df.columns = ['time', 'glc']
+    # Convert to datetime
+    df['time'] = pd.to_datetime(df['time'])
 
     df.reset_index(inplace=True, drop=True)
     # Replace low high values
@@ -100,7 +104,7 @@ def combine_datetime(date, time):
         dt = np.nan
     return dt
 
-def transform_data(directory, device):
+def transform_directory(directory, device):
     total_cgm = []
     for filename in os.listdir(directory):
         # Read the file using pandas
