@@ -2,6 +2,7 @@ import pandas as pd
 import datetime
 import numpy as np
 import warnings
+import copy
 
 def check_df(df):
     """
@@ -50,6 +51,7 @@ def replace_cutoffs(df, remove=False, cap=True, lo_cutoff=2.1, hi_cutoff=22.3):
         - If cap is True, the function caps values above hi_cutoff and below lo_cutoff with the respective cutoff values.
         - The function also converts the 'glc' column to numeric values and converts the 'time' column to datetime.
     """
+    df = copy.copy(df)
     if remove:
         df['glc']= pd.to_numeric(df['glc'].replace({'High': lo_cutoff, 'Low': lo_cutoff, 'high': hi_cutoff, 'low': lo_cutoff, 
                              'HI':hi_cutoff, 'LO':lo_cutoff, 'hi':hi_cutoff, 'lo':lo_cutoff}))
@@ -89,6 +91,8 @@ def fill_missing_data(df, interval=5, method='pchip', limit=30, order=5):
         - For polynomial or spline interpolation, the 'order' parameter specifies the order of the interpolation.
 
     """
+    df = copy.copy(df)
+
     # Create time-series index and take resample to whatever the interval is
     df = df.set_index('time')
     df_resampled = df.resample(f'{interval}min').mean()
@@ -149,9 +153,10 @@ def set_time_frame(df, window):
     
 def detect_units(df):
     if df['glc'].min() > 50:
-        return 'mg/dl'
+        return 'mg/dL'
     else:
-        return 'mmol/l'
+        return 'mmol/L'
+    
 
 def change_units(df):
     """
@@ -168,13 +173,16 @@ def change_units(df):
         - If the minimum value is greater than 50, the glucose units are converted to a different unit by multiplying with 0.0557 and rounding to one decimal place.
         - If the minimum value is less than or equal to 50, the glucose units are converted by multiplying with 0.0557 and rounding to the nearest integer.
     """
-    if detect_units(df)=='mg/dl':
+    df = copy.copy(df)
+    if detect_units(df)=='mg/dL':
         # Convert glucose units by multiplying with 0.0557 and rounding to one decimal place
         df['glc'] = (df['glc'] * 0.0557).round(1)
     else:
         # Convert glucose units by multiplying with 0.0557 and rounding to the nearest integer
-        df['glc'] = (df['glc'] * 0.0557).round(0)
+        df['glc'] = (df['glc'] / 0.0557).round(0)
 
     return df
+
+
 
     
