@@ -5,6 +5,9 @@ import plotly.graph_objects as go
 
 colors = ['blue', 'purple', 'grey', 'pink', 'red']
 
+def boxplot(df):
+    fig = px.box(df, x='ID', y="glc")
+    return fig
 
 def glucose_trace(df):
     fig = go.Figure()

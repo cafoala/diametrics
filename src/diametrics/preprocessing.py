@@ -147,6 +147,11 @@ def set_time_frame(df, window):
     else:
         raise ValueError("Invalid type for the 'period' argument. Expected a list or a dictionary.")
     
+def detect_units(df):
+    if df['glc'].min() > 50:
+        return 'mg/dl'
+    else:
+        return 'mmol/l'
 
 def change_units(df):
     """
@@ -163,7 +168,7 @@ def change_units(df):
         - If the minimum value is greater than 50, the glucose units are converted to a different unit by multiplying with 0.0557 and rounding to one decimal place.
         - If the minimum value is less than or equal to 50, the glucose units are converted by multiplying with 0.0557 and rounding to the nearest integer.
     """
-    if df['glc'].min() > 50:
+    if detect_units(df)=='mg/dl':
         # Convert glucose units by multiplying with 0.0557 and rounding to one decimal place
         df['glc'] = (df['glc'] * 0.0557).round(1)
     else:

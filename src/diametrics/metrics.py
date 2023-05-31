@@ -8,7 +8,7 @@ from datetime import timedelta
 import statistics
 from sklearn import metrics
 # ASK MIKE/MICHAEL ABOUT THIS
-from src.diametrics import _glycemic_events_helper
+from src.diametrics import _glycemic_events_helper, preprocessing
 #import src.diametrics._glycemic_events_helper as _glycemic_events_helper
 #import src.diametrics._glycemic_events_dicts as _glycemic_events_dicts
 
@@ -106,7 +106,124 @@ def check_df(df):
             return False
         else:
             return True
-            
+
+
+def average_glc(df):
+    """
+    Calculate the average glucose reading from the 'glc' column in the DataFrame.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing a 'glc' column with glucose readings.
+
+    Returns:
+        float: The average glucose reading.
+
+    Note:
+        - The function uses the 'mean' method from pandas.DataFrame to calculate the average.
+        - It returns the average glucose reading as a float value.
+    """
+    # Calculate the mean of the 'glc' column in the DataFrame
+    average = df['glc'].mean()
+
+    return average
+
+
+def percentiles(df):
+    """
+    Calculate various percentiles of glucose readings in the DataFrame.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing a 'glc' column with glucose readings.
+
+    Returns:
+        dict: A dictionary containing the calculated percentiles of glucose readings.
+
+    Note:
+        - The function uses the numpy function np.percentile to calculate the specified percentiles.
+        - The percentiles calculated are: 0th, 10th, 25th, 50th (median), 75th, 90th, and 100th.
+        - The values are returned as a dictionary with keys representing the percentile labels and values representing the corresponding percentile values.
+    """
+    # Calculate the specified percentiles of the 'glc' column in the DataFrame
+    percentile_0, percentile_10, percentile_25, percentile_50, percentile_75, percentile_90, percentile_100 = np.percentile(df['glc'], [0, 10, 25, 50, 75, 90, 100])
+
+    # Create a dictionary with the calculated percentiles
+    percentiles_dict = {
+        'Min. glucose': percentile_0,
+        '10th percentile': percentile_10,
+        '25th percentile': percentile_25,
+        '50th percentile': percentile_50,
+        '75th percentile': percentile_75,
+        '90th percentile': percentile_90,
+        'Max. glucose': percentile_100
+    }
+
+    return percentiles_dict
+
+def glycemic_variability(df):
+    """
+    Calculate the glycemic variability metrics for glucose readings in the DataFrame.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing a 'glc' column with glucose readings.
+
+    Returns:
+        dict: A dictionary containing the calculated glycemic variability metrics.
+
+    Note:
+        - The function uses the 'average_glc' function to calculate the average glucose reading.
+        - It then calculates the standard deviation (SD) of glucose readings using the 'std' method from pandas.Series.
+        - The coefficient of variation (CV) is calculated as (SD * 100 / average glucose).
+        - The calculated SD and CV values are returned as a dictionary with corresponding labels.
+    """
+    # Calculate the average glucose reading using the 'average_glc' function
+    avg_glc = average_glc(df)
+
+    # Calculate the standard deviation (SD) of glucose readings
+    sd = df.glc.std()
+
+    # Calculate the coefficient of variation (CV) as (SD * 100 / average glucose)
+    cv = (sd * 100 / avg_glc)
+
+    # Create a dictionary with the calculated glycemic variability metrics
+    variability_metrics = {
+        'SD': sd,
+        'CV (%)': cv
+    }
+
+    return variability_metrics
+      
+    
+def ea1c(df):
+    """
+    Calculate estimated average HbA1c (eA1c) based on the average glucose readings in the DataFrame.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing a 'glc' column with glucose readings.
+
+    Returns:
+        float: The estimated average HbA1c (eA1c) value.
+
+    Note:
+        - The function calculates the average glucose reading from the 'glc' column in the DataFrame.
+        - It determines the units of the glucose readings using the 'detect_units' function from the 'preprocessing' module.
+        - If the units are 'mmol/l', the eA1c is calculated using the formula: (average glucose + 2.59) / 1.59.
+        - If the units are not 'mmol/l', the eA1c is calculated using the formula: (average glucose + 46.7) / 28.7.
+        - The calculated eA1c value is returned as a float.
+    """
+    avg_glc = df['glc'].mean()
+
+    # Check the units of glucose readings using the 'detect_units' function from the 'preprocessing' module
+    if preprocessing.detect_units(df) == 'mmol/l':
+        # Calculate eA1c using the formula: (average glucose + 2.59) / 1.59
+        ea1c_result = (avg_glc + 2.59) / 1.59
+    else:
+        # Calculate eA1c using the formula: (average glucose + 46.7) / 28.7
+        ea1c_result = (avg_glc + 46.7) / 28.7
+
+    return ea1c_result
+
+
+
 def calculate_auc(df):
     if df.shape[0]>1:
         start_time = df.time.iloc[0]
@@ -118,32 +235,69 @@ def calculate_auc(df):
         return np.nan
 
 def auc(df):
+    """
+    Calculate the area under the curve (AUC) for glucose readings in the DataFrame.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing a 'glc' column with glucose readings and a 'time' column with timestamps.
+
+    Returns:
+        tuple: A tuple containing the hourly average AUC, daily AUC breakdown, and hourly AUC breakdown.
+
+    Note:
+        - The function calculates the AUC by breaking down the DataFrame into hourly and daily intervals.
+        - It uses the 'calculate_auc' function to calculate the AUC for each group.
+        - The hourly AUC breakdown is a DataFrame with columns 'date', 'hour', and 'auc'.
+        - The daily AUC breakdown is a Series with dates as the index and average AUC values as the values.
+        - The hourly average AUC is the mean of the AUC values in the hourly breakdown.
+    """
+    # Add 'date' and 'hour' columns to the DataFrame based on the 'time' column
     df['date'] = df['time'].dt.date
     df['hour'] = df['time'].dt.hour
+
+    # Calculate the AUC for each hourly group using the 'calculate_auc' function
     hourly_breakdown = df.groupby([df.date, df.hour]).apply(lambda group: calculate_auc(group)).reset_index()
     hourly_breakdown.columns = ['date', 'hour', 'auc']
+
+    # Calculate the daily average AUC
     daily_breakdown = hourly_breakdown.groupby('date').auc.mean()
+
+    # Calculate the hourly average AUC
     hourly_avg = hourly_breakdown['auc'].mean()
-    #daily_auc = df.groupby(df['time'].dt.date).apply(lambda group: calculate_auc(group))/24 # .reset_index()
-    #daily_avg = daily_auc.mean()
-    return  hourly_avg, daily_breakdown, hourly_breakdown 
+
+    return hourly_avg, daily_breakdown, hourly_breakdown
+
     
 def mage(df):
-    '''
-    Calculates the mage using Scipy's signal class
-    '''
+    """
+    Calculate the mean amplitude of glycemic excursions (MAGE) using scipy's signal class.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing a 'glc' column with glucose readings and a 'time' column with timestamps.
+
+    Returns:
+        dict: A dictionary containing the MAGE value.
+
+    Note:
+        - The function uses scipy's signal.find_peaks function to find peaks and troughs in the glucose readings.
+        - It then calculates the positive and negative MAGE and returns their mean.
+    """
     # Find peaks and troughs using scipy signal
     peaks, properties = signal.find_peaks(df['glc'], prominence=df['glc'].std())
     troughs, properties = signal.find_peaks(-df['glc'], prominence=df['glc'].std())
-    # Create dataframe with peaks and troughs in order
+
+    # Create a dataframe with peaks and troughs in order
     single_indexes = df.iloc[np.concatenate((peaks, troughs, [0, -1]))]
     single_indexes.sort_values('time', inplace=True)
+
     # Make a difference column between the peaks and troughs
     single_indexes['diff'] = single_indexes['glc'].diff()
-    # Calculate the positive and negative mage and mean
+
+    # Calculate the positive and negative MAGE and their mean
     mage_positive = single_indexes[single_indexes['diff'] > 0]['diff'].mean()
     mage_negative = single_indexes[single_indexes['diff'] < 0]['diff'].mean()
-    if pd.notnull(mage_positive) & pd.notnull(mage_negative):
+
+    if pd.notnull(mage_positive) and pd.notnull(mage_negative):
         mage_mean = statistics.mean([mage_positive, abs(mage_negative)])
     elif pd.notnull(mage_positive):
         mage_mean = mage_positive
@@ -151,7 +305,9 @@ def mage(df):
         mage_mean = abs(mage_negative)
     else:
         mage_mean = 0  # np.nan
-    return {'MAGE':mage_mean}
+
+    return {'MAGE': mage_mean}
+
 
 def convert_to_rounded_percent(value, length):
     return round(value * 100 / length, 2)
@@ -162,8 +318,10 @@ def time_in_range(series):
     Helper function for time in range calculation with normal thresholds. Calculates the percentage of readings within
     each threshold by dividing the number of readings within range by total length of series
     """
-    series = np.array(series) # Convert input series to NumPy array for vectorized calculations
-    df_len = len(series) # Get length of the series
+    # Convert input series to NumPy array for vectorized calculations
+    series = np.array(series) 
+    # Get length of the series
+    df_len = len(series)
 
     # Calculate the percentage of readings within each threshold range
     tir_norm = np.around(np.sum((series >= 3.9) & (series <= 10)) / df_len * 100, decimals=2)
@@ -197,19 +355,15 @@ def tir_helper(series):
 
     tir_lv2_hyper = convert_to_rounded_percent(series.loc[series > 13.9].size, df_len)
     
-    #tir_norm_1 = convert_to_rounded_percent((series.loc[(series >= 3.9) & (series < 7.8)]).size, df_len)
+    tir_norm_1 = convert_to_rounded_percent((series.loc[(series >= 3.9) & (series < 7.8)]).size, df_len)
 
-    #tir_norm_2 = convert_to_rounded_percent((series.loc[(series >= 7.8) & (series <= 10)]).size, df_len)
-    '''
-    tir_hypo_ex = series.loc[series < 5].size, df_len)
+    tir_norm_2 = convert_to_rounded_percent((series.loc[(series >= 7.8) & (series <= 10)]).size, df_len)
 
-    tir_norm_ex = (series.loc[(series >= 5) & (series <= 15)]).size, df_len)
-
-    tir_hyper_ex = series.loc[series > 15].size, df_len)
-    '''
     #'TIR hypoglycemia':tir_hypo,'TIR hyperglycemia':tir_hyper, 
-    return {'TIR normal': tir_norm,  'TIR level 1 hypoglycemia':tir_lv1_hypo, 'TIR level 2 hypoglycemia':tir_lv2_hypo, #'TIR normal (3.9-7.8)': tir_norm_1, 'TIR normal (7.8-10)': tir_norm_2, 
+    return {'TIR normal': tir_norm, 'TIR normal 1': tir_norm_1, 'TIR normal 2': tir_norm_2, 
+            'TIR level 1 hypoglycemia':tir_lv1_hypo, 'TIR level 2 hypoglycemia':tir_lv2_hypo, 
             'TIR level 1 hyperglycemia':tir_lv1_hyper, 'TIR level 2 hyperglycemia':tir_lv2_hyper}
+
 
 def unique_tir_helper(glc_series, lower_thresh, upper_thresh):
     df_len = glc_series.size
@@ -220,6 +374,7 @@ def unique_tir_helper(glc_series, lower_thresh, upper_thresh):
     else:
         tir = convert_to_rounded_percent(glc_series.loc[(glc_series <= upper_thresh) & (glc_series >= lower_thresh)].size, df_len)
     return tir
+
 
 def unique_time_in_range(glc_series, thresholds, units):
     if thresholds is None:
@@ -294,17 +449,17 @@ def calc_bgi(glucose, units):
     bgi = num1*(np.log(glucose)**num2 - num3)
     return bgi
     
-def calc_lbgi(glucose, units):
+def lbgi(glucose, units):
     bgi = calc_bgi(glucose, units)
     lbgi = 10*(min(bgi, 0)**2)
     return lbgi
 
-def calc_hbgi(glucose, units):
+def hbgi(glucose, units):
     bgi = calc_bgi(glucose, units)
     hbgi = 10*(max(bgi, 0)**2)
     return hbgi
 
 def bgi(glc_series, units):
-    lbgi = glc_series.apply(lambda x: calc_lbgi(x, units)).mean()
-    hbgi = glc_series.apply(lambda x: calc_hbgi(x, units)).mean()
-    return {'LBGI': lbgi, 'HBGI':hbgi}
+    lbgi_result = glc_series.apply(lambda x: lbgi(x, units)).mean()
+    hbgi_result = glc_series.apply(lambda x: hbgi(x, units)).mean()
+    return {'LBGI': lbgi_result, 'HBGI':hbgi_result}
