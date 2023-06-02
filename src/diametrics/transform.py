@@ -113,7 +113,7 @@ def transform_directory(directory, device):
 
         # Convert to standard format
         if device == 'libre':
-            df_std = convert_flash_libre(df)
+            df_std = convert_libre(df)
             
         elif device == 'dexcom':
             df_std = convert_dexcom(df)

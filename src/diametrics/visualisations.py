@@ -152,6 +152,18 @@ def agp(df):
     return fig
 
 ### Group figs
+
+def tir_bargraph(df):
+    y_value = ['TIR level 2 hypoglycemia (%)',
+               'TIR level 1 hypoglycemia (%)', 
+               'TIR normal 1 (%)',
+               'TIR normal 2 (%)',
+               'TIR level 1 hyperglycemia (%)',
+               'TIR level 2 hyperglycemia (%)']
+
+    fig = px.bar(df, x='ID', y=y_value)
+    return fig
+
 def create_bargraph(df, y_axis):
     if y_axis=='Time in range':
         y_value = ['TIR level 2 hypoglycemia', 
@@ -175,7 +187,7 @@ def create_bargraph(df, y_axis):
     fig = px.bar(df, x='ID', y=y_value)
     return fig
 
-def create_boxplot(df, y_axis):
+def tir_boxplot(df, y_axis):
     if y_axis=='Time in range':
         y_value=['TIR level 2 hypoglycemia',
         'TIR level 1 hypoglycemia', 'TIR normal',

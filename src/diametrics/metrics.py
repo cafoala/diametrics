@@ -31,55 +31,6 @@ UNIT_THRESHOLDS = {
     }
 }
 
-def standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_hyper=None, lv2_hyper=None, additional_tirs=None,  event_mins=15, event_long_mins=120):    
-    if check_df(df):
-        # create a list to add the results to
-        results = {}
-
-        df = df.dropna(subset=['time', 'glc']).reset_index(drop=True)
-        
-        # Amount of data available
-        data_suff = data_sufficiency(df)
-        data_suff['Days'] = str(pd.to_datetime(data_suff['End DateTime']) - pd.to_datetime(data_suff['Start DateTime']))
-        results.update(data_suff)
-        
-        # Basic metrics
-        individual_metrics = {'Average glucose':average_glc(df), 
-                             'eA1c (%)':ea1c(df), 
-                             'AUC': auc(df)['avg_hourly_auc']}
-        results.update(individual_metrics)
-        
-        # Glycemic variability
-        glyc_var = glycemic_variability(df)
-        results.update(glyc_var)
-
-        # LBGI and HBGI
-        bgi_results = bgi(df)
-        results.update(bgi_results)
-        
-        # MAGE
-        mage_results = mage(df)
-        results.update(mage_results)
-
-        # Time in ranges
-        ranges = time_in_range(df)
-        results.update(ranges)
-
-        unique_ranges = unique_time_in_range(df, additional_tirs)
-        results.update(unique_ranges)
-        
-        # New method
-        hypos = glycemic_episodes(df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, event_mins, event_long_mins)
-        results.update(hypos)
-        
-        if return_df: 
-            # Convert to df
-            results = pd.DataFrame.from_dict([results])
-
-        return results
-    
-    else:
-        raise Exception
     
 def all_standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_hyper=None, lv2_hyper=None, additional_tirs=None, event_mins=15, event_long_mins=120):
     """
@@ -103,55 +54,70 @@ def all_standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_h
         Exception: If the input DataFrame fails the data check.
 
     """
-    if check_df(df):
-        results = {}
+    def run(df, return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins):
+        if check_df(df):
+            results = {}
 
-        # Drop rows with missing time or glucose values
-        df = df.dropna(subset=['time', 'glc']).reset_index(drop=True)
-        
-        # Amount of data available
-        data_suff = data_sufficiency(df)
-        data_suff['Days'] = str(pd.to_datetime(data_suff['End DateTime']) - pd.to_datetime(data_suff['Start DateTime']))
-        results.update(data_suff)
-        
-        # Basic metrics
-        individual_metrics = {'Average glucose': average_glc(df), 
-                              'eA1c (%)': ea1c(df), 
-                              'AUC': auc(df)['avg_hourly_auc']}
-        results.update(individual_metrics)
-        
-        # Glycemic variability
-        glyc_var = glycemic_variability(df)
-        results.update(glyc_var)
+            # Drop rows with missing time or glucose values
+            df = df.dropna(subset=['time', 'glc']).reset_index(drop=True)
+            
+            # Amount of data available
+            data_suff = data_sufficiency(df)
+            data_suff['Days'] = str(pd.to_datetime(data_suff['End DateTime']) - pd.to_datetime(data_suff['Start DateTime']))
+            results.update(data_suff)
+            
+            # Average glucose
+            avg_glc_result = average_glc(df)
+            results.update(avg_glc_result)
 
-        # LBGI and HBGI
-        bgi_results = bgi(df)
-        results.update(bgi_results)
-        
-        # MAGE
-        mage_results = mage(df)
-        results.update(mage_results)
+            # eA1c
+            ea1c_result = ea1c(df)
+            results.update(ea1c_result)
+            
+            # Glycemic variability
+            glyc_var = glycemic_variability(df)
+            results.update(glyc_var)
+            
+            # AUC
+            auc_result = auc(df)
+            results.update(auc_result)
+            
+            # LBGI and HBGI
+            bgi_results = bgi(df)
+            results.update(bgi_results)
+            
+            # MAGE
+            mage_results = mage(df)
+            results.update(mage_results)
 
-        # Time in ranges
-        ranges = time_in_range(df)
-        results.update(ranges)
+            # Time in ranges
+            ranges = time_in_range(df)
+            results.update(ranges)
 
-        unique_ranges = unique_time_in_range(df, additional_tirs)
-        results.update(unique_ranges)
-        
-        # New method
-        hypos = glycemic_episodes(df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, event_mins, event_long_mins)
-        results.update(hypos)
-        
-        if return_df: 
-            # Convert to DataFrame
-            results = pd.DataFrame.from_dict([results])
+            unique_ranges = unique_time_in_range(df, additional_tirs)
+            results.update(unique_ranges)
+            
+            # New method
+            hypos = glycemic_episodes(df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, event_mins, event_long_mins)
+            results.update(hypos)
+            
+            #if return_df: 
+                # Convert to DataFrame
+                #results = pd.DataFrame.from_dict([results])
 
-        return results
+            return results
+        
+        else:
+            raise Exception("Data check failed. Please ensure the input DataFrame is valid.")
     
-    else:
-        raise Exception("Data check failed. Please ensure the input DataFrame is valid.")
-
+    if 'ID' in df.columns:
+        df.groupby('ID').apply(lambda group: print(group.head()))
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group.drop(columns='ID'), return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df, return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins)
+        return results    
+    
 
 def check_df(df):
     '''
@@ -185,10 +151,18 @@ def average_glc(df):
         - The function uses the 'mean' method from pandas.DataFrame to calculate the average.
         - It returns the average glucose reading as a float value.
     """
-    # Calculate the mean of the 'glc' column in the DataFrame
-    average = df['glc'].mean()
-
-    return average
+    def run(df):
+        units = preprocessing.detect_units(df)
+        # Calculate the mean of the 'glc' column in the DataFrame
+        average = df['glc'].mean()
+        return {f'Average glucose ({units})': average}
+    
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df)
+        return results
 
 
 def percentiles(df):
@@ -230,6 +204,8 @@ def percentiles(df):
         results = run(df)
         return results
 
+
+
 def glycemic_variability(df):
     """
     Calculate the glycemic variability metrics for glucose readings in the DataFrame.
@@ -246,23 +222,28 @@ def glycemic_variability(df):
         - The coefficient of variation (CV) is calculated as (SD * 100 / average glucose).
         - The calculated SD and CV values are returned as a dictionary with corresponding labels.
     """
-    # Calculate the average glucose reading using the 'average_glc' function
-    avg_glc = average_glc(df)
+    def run(df):
+        units = preprocessing.detect_units(df)
+        # Calculate the average glucose reading using the 'average_glc' function
+        avg_glc = df['glc'].mean()
+        # Calculate the standard deviation (SD) of glucose readings
+        sd = df['glc'].std()
+        # Calculate the coefficient of variation (CV) as (SD * 100 / average glucose)
+        cv = sd * 100 / avg_glc
+        # Create a dictionary with the calculated glycemic variability metrics
+        variability_metrics = {
+            f'SD ({units})': sd,
+            'CV (%)': cv
+        }
+        return variability_metrics
+        
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df)
+        return results
 
-    # Calculate the standard deviation (SD) of glucose readings
-    sd = df.glc.std()
-
-    # Calculate the coefficient of variation (CV) as (SD * 100 / average glucose)
-    cv = (sd * 100 / avg_glc)
-
-    # Create a dictionary with the calculated glycemic variability metrics
-    variability_metrics = {
-        'SD': sd,
-        'CV (%)': cv
-    }
-
-    return variability_metrics
-      
     
 def ea1c(df):
     """
@@ -281,18 +262,25 @@ def ea1c(df):
         - If the units are not 'mmol/l', the eA1c is calculated using the formula: (average glucose + 46.7) / 28.7.
         - The calculated eA1c value is returned as a float.
     """
-    avg_glc = df['glc'].mean()
+    def run(df):
+        avg_glc = df['glc'].mean()
 
-    # Check the units of glucose readings using the 'detect_units' function from the 'preprocessing' module
-    if preprocessing.detect_units(df) == 'mmol/L':
-        # Calculate eA1c using the formula: (average glucose + 2.59) / 1.59
-        ea1c_result = (avg_glc + 2.59) / 1.59
-    else:
-        # Calculate eA1c using the formula: (average glucose + 46.7) / 28.7
-        ea1c_result = (avg_glc + 46.7) / 28.7
+        # Check the units of glucose readings using the 'detect_units' function from the 'preprocessing' module
+        if preprocessing.detect_units(df) == 'mmol/L':
+            # Calculate eA1c using the formula: (average glucose + 2.59) / 1.59
+            ea1c_result = (avg_glc + 2.59) / 1.59
+        else:
+            # Calculate eA1c using the formula: (average glucose + 46.7) / 28.7
+            ea1c_result = (avg_glc + 46.7) / 28.7
 
-    return ea1c_result
-
+        return {'eA1c (%)': ea1c_result}
+    
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df)
+        return results    
 
 def calculate_auc(df):
     """
@@ -317,6 +305,7 @@ def calculate_auc(df):
         return avg_auc
     else:
         return np.nan
+        
 
 def auc(df):
     """
@@ -335,22 +324,33 @@ def auc(df):
         - The daily AUC breakdown is a Series with dates as the index and average AUC values as the values.
         - The hourly average AUC is the mean of the AUC values in the hourly breakdown.
     """
-    # Add 'date' and 'hour' columns to the DataFrame based on the 'time' column
-    df['date'] = df['time'].dt.date
-    df['hour'] = df['time'].dt.hour
+    def run(df):
+        if preprocessing.detect_units(df) == 'mmol/L':
+            units = 'mmol h/L'
+        else:
+            units = 'mg h/dL'
+        # Add 'date' and 'hour' columns to the DataFrame based on the 'time' column
+        df['date'] = df['time'].dt.date
+        df['hour'] = df['time'].dt.hour
 
-    # Calculate the AUC for each hourly group using the 'calculate_auc' function
-    hourly_breakdown = df.groupby([df.date, df.hour]).apply(lambda group: calculate_auc(group)).reset_index()
-    hourly_breakdown.columns = ['date', 'hour', 'auc']
+        # Calculate the AUC for each hourly group using the 'calculate_auc' function
+        hourly_breakdown = df.groupby([df.date, df.hour]).apply(lambda group: calculate_auc(group)).reset_index()
+        hourly_breakdown.columns = ['date', 'hour', 'auc']
 
-    # Calculate the daily average AUC
-    daily_breakdown = hourly_breakdown.groupby('date').auc.mean()
+        # Calculate the daily average AUC
+        daily_breakdown = hourly_breakdown.groupby('date').auc.mean()
 
-    # Calculate the hourly average AUC
-    hourly_avg = hourly_breakdown['auc'].mean()
+        # Calculate the hourly average AUC
+        hourly_avg = hourly_breakdown['auc'].mean()
 
-    return {'avg_hourly_auc': hourly_avg, 'auc_daily_breakdown': daily_breakdown, 'auc_hourly_breakdown': hourly_breakdown}
-
+        return {f'AUC ({units})': hourly_avg}# 'auc_daily_breakdown': daily_breakdown, 'auc_hourly_breakdown': hourly_breakdown}
+    
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df)
+        return results
     
 def mage(df):
     """
@@ -366,32 +366,40 @@ def mage(df):
         - The function uses scipy's signal.find_peaks function to find peaks and troughs in the glucose readings.
         - It then calculates the positive and negative MAGE and returns their mean.
     """
-    # Find peaks and troughs using scipy signal
-    peaks, properties = signal.find_peaks(df['glc'], prominence=df['glc'].std())
-    troughs, properties = signal.find_peaks(-df['glc'], prominence=df['glc'].std())
+    def run(df):
+        units = preprocessing.detect_units(df)
+        # Find peaks and troughs using scipy signal
+        peaks, properties = signal.find_peaks(df['glc'], prominence=df['glc'].std())
+        troughs, properties = signal.find_peaks(-df['glc'], prominence=df['glc'].std())
 
-    # Create a dataframe with peaks and troughs in order
-    single_indexes = df.iloc[np.concatenate((peaks, troughs, [0, -1]))]
-    single_indexes.sort_values('time', inplace=True)
+        # Create a dataframe with peaks and troughs in order
+        single_indexes = df.iloc[np.concatenate((peaks, troughs, [0, -1]))]
+        single_indexes.sort_values('time', inplace=True)
 
-    # Make a difference column between the peaks and troughs
-    single_indexes['diff'] = single_indexes['glc'].diff()
+        # Make a difference column between the peaks and troughs
+        single_indexes['diff'] = single_indexes['glc'].diff()
 
-    # Calculate the positive and negative MAGE and their mean
-    mage_positive = single_indexes[single_indexes['diff'] > 0]['diff'].mean()
-    mage_negative = single_indexes[single_indexes['diff'] < 0]['diff'].mean()
+        # Calculate the positive and negative MAGE and their mean
+        mage_positive = single_indexes[single_indexes['diff'] > 0]['diff'].mean()
+        mage_negative = single_indexes[single_indexes['diff'] < 0]['diff'].mean()
 
-    if pd.notnull(mage_positive) and pd.notnull(mage_negative):
-        mage_mean = statistics.mean([mage_positive, abs(mage_negative)])
-    elif pd.notnull(mage_positive):
-        mage_mean = mage_positive
-    elif pd.notnull(mage_negative):
-        mage_mean = abs(mage_negative)
-    else:
-        mage_mean = np.nan #0
+        if pd.notnull(mage_positive) and pd.notnull(mage_negative):
+            mage_mean = statistics.mean([mage_positive, abs(mage_negative)])
+        elif pd.notnull(mage_positive):
+            mage_mean = mage_positive
+        elif pd.notnull(mage_negative):
+            mage_mean = abs(mage_negative)
+        else:
+            mage_mean = np.nan #0
 
-    return {'MAGE': mage_mean}
-
+        return {f'MAGE ({units})': mage_mean}
+    
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df)
+        return results
 
 def time_in_range(df):
     """
@@ -414,42 +422,49 @@ def time_in_range(df):
         - TIR level 1 hyperglycemia represents the percentage of readings within the range (10, 13.9].
         - TIR level 2 hyperglycemia represents the percentage of readings above 13.9.
     """
-    # Convert input series to NumPy array for vectorized calculations
-    series = np.array(df['glc']) 
-    # Get length of the series
-    df_len = len(series)
+    def run(df):
+        # Convert input series to NumPy array for vectorized calculations
+        series = np.array(df['glc']) 
+        # Get length of the series
+        df_len = len(series)
 
-    # Detect the units used in the df
-    units = preprocessing.detect_units(df)
+        # Detect the units used in the df
+        units = preprocessing.detect_units(df)
+        
+        # Use this to get the thresholds from the global dictionary
+        thresholds = UNIT_THRESHOLDS.get(units, {})
+        norm_tight = thresholds.get('norm_tight')
+        hypo_lv1 = thresholds.get('hypo_lv1')
+        hypo_lv2 = thresholds.get('hypo_lv2')
+        hyper_lv1 = thresholds.get('hyper_lv1')
+        hyper_lv2 = thresholds.get('hyper_lv2')
+
+        # Calculate the percentage of readings within each threshold range
+        tir_norm = np.around(np.sum((series >= hypo_lv1) & (series <= hyper_lv1)) / df_len * 100, decimals=2)
+        tir_norm_1 = np.around(np.sum((series >= hypo_lv1) & (series < norm_tight)) / df_len * 100, decimals=2)
+        tir_norm_2 = np.around(np.sum((series >= norm_tight) & (series <= hyper_lv1)) / df_len * 100, decimals=2)
+        tir_lv1_hypo = np.around(np.sum((series < hypo_lv1) & (series >= hypo_lv2)) / df_len * 100, decimals=2)
+        tir_lv2_hypo = np.around(np.sum(series < hypo_lv2) / df_len * 100, decimals=2)
+        tir_lv1_hyper = np.around(np.sum((series <= hyper_lv2) & (series > hyper_lv1)) / df_len * 100, decimals=2)
+        tir_lv2_hyper = np.around(np.sum(series > hyper_lv2) / df_len * 100, decimals=2)
+
+        # Return the calculated values as a dictionary
+        return {
+            'TIR normal (%)': tir_norm,
+            'TIR normal 1 (%)': tir_norm_1,
+            'TIR normal 2 (%)': tir_norm_2,
+            'TIR level 1 hypoglycemia (%)': tir_lv1_hypo,
+            'TIR level 2 hypoglycemia (%)': tir_lv2_hypo,
+            'TIR level 1 hyperglycemia (%)': tir_lv1_hyper,
+            'TIR level 2 hyperglycemia (%)': tir_lv2_hyper
+        }
     
-    # Use this to get the thresholds from the global dictionary
-    thresholds = UNIT_THRESHOLDS.get(units, {})
-    norm_tight = thresholds.get('norm_tight')
-    hypo_lv1 = thresholds.get('hypo_lv1')
-    hypo_lv2 = thresholds.get('hypo_lv2')
-    hyper_lv1 = thresholds.get('hyper_lv1')
-    hyper_lv2 = thresholds.get('hyper_lv2')
-
-    # Calculate the percentage of readings within each threshold range
-    tir_norm = np.around(np.sum((series >= hypo_lv1) & (series <= hyper_lv1)) / df_len * 100, decimals=2)
-    tir_norm_1 = np.around(np.sum((series >= hypo_lv1) & (series < norm_tight)) / df_len * 100, decimals=2)
-    tir_norm_2 = np.around(np.sum((series >= norm_tight) & (series <= hyper_lv1)) / df_len * 100, decimals=2)
-    tir_lv1_hypo = np.around(np.sum((series < hypo_lv1) & (series >= hypo_lv2)) / df_len * 100, decimals=2)
-    tir_lv2_hypo = np.around(np.sum(series < hypo_lv2) / df_len * 100, decimals=2)
-    tir_lv1_hyper = np.around(np.sum((series <= hyper_lv2) & (series > hyper_lv1)) / df_len * 100, decimals=2)
-    tir_lv2_hyper = np.around(np.sum(series > hyper_lv2) / df_len * 100, decimals=2)
-
-    # Return the calculated values as a dictionary
-    return {
-        'TIR normal': tir_norm,
-        'TIR normal 1': tir_norm_1,
-        'TIR normal 2': tir_norm_2,
-        'TIR level 1 hypoglycemia': tir_lv1_hypo,
-        'TIR level 2 hypoglycemia': tir_lv2_hypo,
-        'TIR level 1 hyperglycemia': tir_lv1_hyper,
-        'TIR level 2 hyperglycemia': tir_lv2_hyper
-    }
-
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df)
+        return results
 
 def convert_to_rounded_percent(value, length):
     return round(value * 100 / length, 2)
@@ -499,37 +514,44 @@ def glycemic_episodes(df, hypo_lv1_thresh=None, hypo_lv2_thresh=None, hyper_lv1_
         - The function calculates the statistics of glycemic episodes using the '_glycemic_events_helper.calculate_episodes' helper function.
         - The calculated statistics include the total number, LV1 (Level 1) events, LV2 (Level 2) events, prolonged events, average length, and total time spent in episodes for both hypoglycemic and hyperglycemic events.
     """
-    # Identify the units of the dataframe
-    units = preprocessing.detect_units(df)
+    def run(df, hypo_lv1_thresh, hypo_lv2_thresh, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins):
+        # Identify the units of the dataframe
+        units = preprocessing.detect_units(df)
 
-    # Determine threshold values if not provided
-    thresholds = UNIT_THRESHOLDS.get(units, {})
-    hypo_lv1_thresh = hypo_lv1_thresh or thresholds.get('hypo_lv1')
-    hypo_lv2_thresh = hypo_lv2_thresh or thresholds.get('hypo_lv2')
-    hyper_lv1_thresh = hyper_lv1_thresh or thresholds.get('hyper_lv1')
-    hyper_lv2_thresh = hyper_lv2_thresh or thresholds.get('hyper_lv2')
+        # Determine threshold values if not provided
+        thresholds = UNIT_THRESHOLDS.get(units, {})
+        hypo_lv1_thresh = hypo_lv1_thresh or thresholds.get('hypo_lv1')
+        hypo_lv2_thresh = hypo_lv2_thresh or thresholds.get('hypo_lv2')
+        hyper_lv1_thresh = hyper_lv1_thresh or thresholds.get('hyper_lv1')
+        hyper_lv2_thresh = hyper_lv2_thresh or thresholds.get('hyper_lv2')
 
-    # Calculate statistics for hypoglycemic events
-    total_hypos, lv1_hypos, lv2_hypos, prolonged_hypos, avg_length_hypos, total_time_hypos = _glycemic_events_helper.calculate_episodes(df, True, hypo_lv1_thresh, hypo_lv2_thresh, mins, long_mins)
+        # Calculate statistics for hypoglycemic events
+        total_hypos, lv1_hypos, lv2_hypos, prolonged_hypos, avg_length_hypos, total_time_hypos = _glycemic_events_helper.calculate_episodes(df, True, hypo_lv1_thresh, hypo_lv2_thresh, mins, long_mins)
 
-    # Calculate statistics for hyperglycemic events
-    total_hypers, lv1_hypers, lv2_hypers, prolonged_hypers, avg_length_hypers, total_time_hypers = _glycemic_events_helper.calculate_episodes(df, False, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins)
+        # Calculate statistics for hyperglycemic events
+        total_hypers, lv1_hypers, lv2_hypers, prolonged_hypers, avg_length_hypers, total_time_hypers = _glycemic_events_helper.calculate_episodes(df, False, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins)
 
-    # Prepare results dictionary
-    results = {'Total number hypoglycemic events': total_hypos, 
-                'Number LV1 hypoglycemic events': lv1_hypos, 
-                'Number LV2 hypoglycemic events':lv2_hypos, 
-                'Number prolonged hypoglycemic events':prolonged_hypos, 
-                'Avg. length of hypoglycemic events': avg_length_hypos, 
-                'Total time spent in hypoglycemic events':total_time_hypos,
-                'Total number hyperglycemic events':total_hypers, 
-                'Number LV1 hyperglycemic events':lv1_hypers,
-                'Number LV2 hyperglycemic events':lv2_hypers,
-                'Number prolonged hyperglycemic events':prolonged_hypers, 
-                'Avg. length of hyperglycemic events':avg_length_hypers,
-                'Total time spent in hyperglycemic events':total_time_hypers}
-    return results
-
+        # Prepare results dictionary
+        results = {'Total number hypoglycemic events': total_hypos, 
+                    'Number LV1 hypoglycemic events': lv1_hypos, 
+                    'Number LV2 hypoglycemic events':lv2_hypos, 
+                    'Number prolonged hypoglycemic events':prolonged_hypos, 
+                    'Avg. length of hypoglycemic events': avg_length_hypos, 
+                    'Total time spent in hypoglycemic events':total_time_hypos,
+                    'Total number hyperglycemic events':total_hypers, 
+                    'Number LV1 hyperglycemic events':lv1_hypers,
+                    'Number LV2 hyperglycemic events':lv2_hypers,
+                    'Number prolonged hyperglycemic events':prolonged_hypers, 
+                    'Avg. length of hyperglycemic events':avg_length_hypers,
+                    'Total time spent in hyperglycemic events':total_time_hypers}
+        return results
+    
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group, hypo_lv1_thresh, hypo_lv2_thresh, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df, hypo_lv1_thresh, hypo_lv2_thresh, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins)
+        return results
 
 def data_sufficiency(df, start_time=None, end_time=None):
     """
@@ -553,40 +575,47 @@ def data_sufficiency(df, start_time=None, end_time=None):
         - The gap size must be either 5 or 15. Otherwise, a ValueError is raised.
         - The data sufficiency percentage is calculated as the ratio of non-null values to the total expected values.
     """
-    # Determine start and end time from the DataFrame if not provided
-    start_time = start_time or df['time'].iloc[0]
-    end_time = end_time or df['time'].iloc[-1]
+    def run(df, start_time, end_time):
+        # Determine start and end time from the DataFrame if not provided
+        start_time = start_time or df['time'].iloc[0]
+        end_time = end_time or df['time'].iloc[-1]
 
-    # Subset the DataFrame based on the provided time range
-    df = df.loc[(df['time'] >= start_time) & (df['time'] <= end_time)]
+        # Subset the DataFrame based on the provided time range
+        df = df.loc[(df['time'] >= start_time) & (df['time'] <= end_time)]
 
-    # Calculate the interval size
-    mode_gap = df['time'].diff().mode().iloc[0]
-    # If it doesn't conform to 5 or 15 then don't count it
-    if ((timedelta(minutes=4) < mode_gap) & (mode_gap < timedelta(minutes=6))):
-        freq = '5min'
-    elif ((timedelta(minutes=14) < mode_gap) & (mode_gap < timedelta(minutes=16))):
-        freq = '15min'
-    else:
-        raise ValueError('Invalid gap size. Gap size must be 5 or 15.')
+        # Calculate the interval size
+        mode_gap = df['time'].diff().mode().iloc[0]
+        # If it doesn't conform to 5 or 15 then don't count it
+        if ((timedelta(minutes=4) < mode_gap) & (mode_gap < timedelta(minutes=6))):
+            freq = '5min'
+        elif ((timedelta(minutes=14) < mode_gap) & (mode_gap < timedelta(minutes=16))):
+            freq = '15min'
+        else:
+            raise ValueError('Invalid gap size. Gap size must be 5 or 15.')
 
-    # Calculate the number of non-null values
-    number_readings = sum(df.set_index('time').groupby(pd.Grouper(freq=freq)).count()['glc'] > 0)
-    # Calculate the total expected readings based on the start and end of the time range
-    total_readings = ((end_time - start_time) + mode_gap) / mode_gap
+        # Calculate the number of non-null values
+        number_readings = sum(df.set_index('time').groupby(pd.Grouper(freq=freq)).count()['glc'] > 0)
+        # Calculate the total expected readings based on the start and end of the time range
+        total_readings = ((end_time - start_time) + mode_gap) / mode_gap
 
-    # Calculate the data sufficiency percentage
-    if number_readings >= total_readings:
-        data_sufficiency = 100
-    else:
-        data_sufficiency = number_readings * 100 / total_readings
+        # Calculate the data sufficiency percentage
+        if number_readings >= total_readings:
+            data_sufficiency = 100
+        else:
+            data_sufficiency = number_readings * 100 / total_readings
 
-    return {
-        'Start DateTime': str(start_time.round('min')),
-        'End DateTime': str(end_time.round('min')),
-        'Data Sufficiency (%)': np.round(data_sufficiency, 1)
-    }
-
+        return {
+            'Start DateTime': str(start_time.round('min')),
+            'End DateTime': str(end_time.round('min')),
+            'Data Sufficiency (%)': np.round(data_sufficiency, 1)
+        }
+    
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group, start_time, end_time), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df, start_time, end_time)
+        return results
 
 def calc_bgi(glucose, units):
     """
@@ -666,7 +695,15 @@ def bgi(df):
         - The function calculates the LBGI and HBGI based on the glucose readings and detects the units of measurement.
         - The LBGI and HBGI are average values calculated from individual readings using the 'lbgi' and 'hbgi' functions.
     """
-    units = preprocessing.detect_units(df)
-    lbgi_result = df['glc'].apply(lambda x: lbgi(x, units)).mean()
-    hbgi_result = df['glc'].apply(lambda x: hbgi(x, units)).mean()
-    return {'LBGI': lbgi_result, 'HBGI': hbgi_result}
+    def run(df):
+        units = preprocessing.detect_units(df)
+        lbgi_result = df['glc'].apply(lambda x: lbgi(x, units)).mean()
+        hbgi_result = df['glc'].apply(lambda x: hbgi(x, units)).mean()
+        return {'LBGI': lbgi_result, 'HBGI': hbgi_result}
+    
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df)
+        return results
