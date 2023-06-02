@@ -57,8 +57,8 @@ def replace_cutoffs(df, remove=False, cap=True, lo_cutoff=2.1, hi_cutoff=22.3):
                              'HI':hi_cutoff, 'LO':lo_cutoff, 'hi':hi_cutoff, 'lo':lo_cutoff}))
 
         if cap:
-            df['glc'][df['glc']>hi_cutoff] = hi_cutoff
-            df['glc'][df['glc']<lo_cutoff] = lo_cutoff
+            df.loc[df['glc']>hi_cutoff, 'glc'] = hi_cutoff
+            df.loc[df['glc']<lo_cutoff, 'glc'] = lo_cutoff
 
     df = df[pd.to_numeric(df['glc'], errors='coerce').notnull()]
     df['glc'] = pd.to_numeric(df['glc'])

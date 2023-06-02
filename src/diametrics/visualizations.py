@@ -28,13 +28,36 @@ UNIT_THRESHOLDS = {
 COLORS = ['blue', 'purple', 'grey', 'pink', 'red']
 
 def boxplot(df, violin=False):
+    """
+    Generate a box plot or violin plot for glucose values.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing glucose data.
+        violin (bool): If True, generate a violin plot. If False, generate a box plot.
+
+    Returns:
+        fig: Plotly figure object representing the box plot or violin plot.
+    """
     if violin:
         return px.violin(df, y='glc', x='ID')
     else:
         return px.box(df, x='ID', y="glc")
-    
+
+
+
 
 def glucose_trace(df, ID=None):
+    """
+    Generate a glucose trace plot.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing glucose data.
+        ID (str, optional): ID of the specific patient. If not provided, the first ID in the DataFrame will be used.
+
+    Returns:
+        fig: Plotly figure object representing the glucose trace plot.
+    """
+    # If ID column present then cut dataframe
     if 'ID' in df.columns:
         ID = ID or df['ID'].iloc[0]
         df = df.loc[df['ID']==ID]
@@ -98,8 +121,17 @@ def glucose_trace(df, ID=None):
         )
     return fig
 
-def get_pie(df):
 
+def get_pie(df):
+    """
+    Calculate the counts for different glucose level ranges.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing glucose data.
+
+    Returns:
+        list: List of values representing the counts for different glucose level ranges.
+    """
     units = preprocessing.detect_units(df)
     # Use this to get the thresholds from the global dictionary
     thresholds = UNIT_THRESHOLDS.get(units, {})
@@ -119,6 +151,16 @@ def get_pie(df):
     
 
 def tir_pie(df, ID=None):
+    """
+    Generate a pie chart to visualize the time spent in different glucose level ranges.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing glucose data.
+        ID (str, optional): ID of the specific patient. If not provided, the first ID in the DataFrame will be used.
+
+    Returns:
+        fig: Plotly figure object representing the pie chart.
+    """
     if 'ID' in df.columns:
         ID = ID or df['ID'].iloc[0]
         df = df.loc[df['ID']==ID]
@@ -134,6 +176,16 @@ def tir_pie(df, ID=None):
     return fig
 
 def agp(df, ID=None):
+    """
+    Generates an ambulatory glucose profile plot based on the given DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing glucose readings.
+        ID (str, optional): The ID of the patient. If provided, the plot will be generated for the specific patient.
+
+    Returns:
+        go.Figure: The ambulatory glucose profile plot.
+    """
     if 'ID' in df.columns:
         ID = ID or df['ID'].iloc[0]
         df = df.loc[df['ID']==ID]
@@ -162,7 +214,7 @@ def agp(df, ID=None):
         fill=None,
         line_color='rgb(0,176,246)',
         name='25-75%-IQR',
-        ))
+    ))
     fig.add_trace(go.Scatter(
         x=x,
         y=q3,
@@ -199,23 +251,30 @@ def agp(df, ID=None):
         name='10/90%',
     ))
 
-    #fig.add_hrect(y0=3.9, y1=10, line_width=0, fillcolor="grey", opacity=0.2, name='Target range')
-    #fig.update_xaxes(showgrid=False, zeroline=False)
-    #fig.update_yaxes(showgrid=False, zeroline=False)
     fig.update_layout(
-        title = 'Ambulatory glucose profile',
-        yaxis_title = f'Glucose ({units})',
-        xaxis_title = 'Time (hr)',
-        xaxis = dict(tickmode = 'array',
-            tickvals = tick_values,
-            ticktext = [i.strftime('%I %p') for i in tick_values])
+        title='Ambulatory glucose profile',
+        yaxis_title=f'Glucose ({units})',
+        xaxis_title='Time (hr)',
+        xaxis=dict(
+            tickmode='array',
+            tickvals=tick_values,
+            ticktext=[i.strftime('%I %p') for i in tick_values]
+        )
     )
 
     return fig
 
-### Group figs
 
 def tir_bargraph(results_df):
+    """
+    Generates a bar graph representing the time in range (TIR) for different glucose levels.
+
+    Args:
+        results_df (pd.DataFrame): The input DataFrame containing TIR results.
+
+    Returns:
+        go.Figure: The TIR bar graph.
+    """
     melted = results_df[['ID', 'TIR level 2 hypoglycemia (%)',
                'TIR level 1 hypoglycemia (%)', 
                'TIR normal 1 (%)',
@@ -223,7 +282,9 @@ def tir_bargraph(results_df):
                'TIR level 1 hyperglycemia (%)',
                'TIR level 2 hyperglycemia (%)']].melt(id_vars='ID')
     fig = px.bar(melted, x='ID', y='value', color='variable')
+
     return fig
+
 
 def create_bargraph(df, y_axis):
     if y_axis=='Time in range':
