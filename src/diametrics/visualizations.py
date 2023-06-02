@@ -2,14 +2,55 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from src.diametrics import preprocessing
 
-colors = ['blue', 'purple', 'grey', 'pink', 'red']
+UNIT_THRESHOLDS = {
+    'mmol/L': {
+        'low': 2.1,
+        'norm_tight': 7.8,
+        'hypo_lv1': 3.9,
+        'hypo_lv2': 3,
+        'hyper_lv1': 10,
+        'hyper_lv2': 13.9,
+        'high': 27.8
+    },
+    'mg/dL': {
+        'low': 37.7,
+        'norm_tight': 140,
+        'hypo_lv1': 70,
+        'hypo_lv2': 54,
+        'hyper_lv1': 180,
+        'hyper_lv2': 250,
+        'high': 500
+    }
+}
 
-def boxplot(df):
-    fig = px.box(df, x='ID', y="glc")
-    return fig
+COLORS = ['blue', 'purple', 'grey', 'pink', 'red']
 
-def glucose_trace(df):
+def boxplot(df, violin=False):
+    if violin:
+        return px.violin(df, y='glc', x='ID')
+    else:
+        return px.box(df, x='ID', y="glc")
+    
+
+def glucose_trace(df, ID=None):
+    if 'ID' in df.columns:
+        ID = ID or df['ID'].iloc[0]
+        df = df.loc[df['ID']==ID]
+    # Determine the units
+    units = preprocessing.detect_units(df)
+
+    # Use this to get the thresholds from the global dictionary
+    thresholds = UNIT_THRESHOLDS.get(units, {})
+    low = thresholds.get('low')
+    norm_tight = thresholds.get('norm_tight')
+    hypo_lv1 = thresholds.get('hypo_lv1')
+    hypo_lv2 = thresholds.get('hypo_lv2')
+    hyper_lv1 = thresholds.get('hyper_lv1')
+    hyper_lv1 = thresholds.get('hyper_lv2')
+    high = thresholds.get('high')
+
     fig = go.Figure()
     # Create and style traces
     fig.add_trace(go.Scatter(x=df.time, y=df.glc,
@@ -20,64 +61,85 @@ def glucose_trace(df):
                             )
     # Add shape regions
     fig.add_hrect(
-        y0="0", y1="3",
-        fillcolor=colors[0], opacity=0.2,
+        y0=low, y1=hypo_lv2,
+        fillcolor=COLORS[0], opacity=0.2,
         layer="below", line_width=0,
         #row=1, col=1
     ),
     fig.add_hrect(
-        y0="3", y1="3.9",
-        fillcolor=colors[1], opacity=0.2,
+        y0=hypo_lv2, y1=hypo_lv1,
+        fillcolor=COLORS[1], opacity=0.2,
         layer="below", line_width=0,
         #row=1, col=1
     ),
     fig.add_hrect(
-        y0="3.9", y1="10",
-        fillcolor=colors[2], opacity=0.2,
+        y0=hypo_lv1, y1=hyper_lv1,
+        fillcolor=COLORS[2], opacity=0.2,
         layer="below", line_width=0,
         #row=1, col=1
     ),
     fig.add_hrect(
-        y0="10", y1="13.9",
-        fillcolor=colors[3], opacity=0.2,
+        y0=hyper_lv1, y1="hyper_lv1",
+        fillcolor=COLORS[3], opacity=0.2,
         layer="below", line_width=0,#annotation_text='Level 1 hyperglycemia (10-13.9)', annotation_position="top left",
         #row=1, col=1
     ),
     fig.add_hrect(
-        y0="13.9", y1="28",
-        fillcolor=colors[4], opacity=0.2,
+        y0=hyper_lv1, y1=high,
+        fillcolor=COLORS[4], opacity=0.2,
         layer="below", line_width=0,#annotation_text='Level 2 hyperglycemia (>13.9)', annotation_position="top left",
         #row=1, col=1
     )
 
     fig.update_layout(
         title = 'Overall glucose trace',
-        yaxis_title = 'Glucose (mmol/L)',
+        yaxis_title = f'Glucose ({units}))',
         xaxis_title = 'Date'
         )
     return fig
 
-def get_pie(glc):
-    hypo2 = (glc<3).sum()
-    hypo1 = ((glc>=3) & (glc<3.9)).sum()
-    norm = ((glc>=3.9 )& (glc<=10)).sum()
-    hyper1 = ((glc>10) & (glc<=13.9)).sum()
-    hyper2 = (glc>13.9).sum()
-    return [hypo2, hypo1, norm, hyper1, hyper2]
+def get_pie(df):
+
+    units = preprocessing.detect_units(df)
+    # Use this to get the thresholds from the global dictionary
+    thresholds = UNIT_THRESHOLDS.get(units, {})
+    norm_tight = thresholds.get('norm_tight')
+    hypo_lv1 = thresholds.get('hypo_lv1')
+    hypo_lv2 = thresholds.get('hypo_lv2')
+    hyper_lv1 = thresholds.get('hyper_lv1')
+    hyper_lv2 = thresholds.get('hyper_lv2')
+    
+    hypo2 = (df['glc']<hypo_lv2).sum()
+    hypo1 = ((df['glc']>=hypo_lv2) & (df['glc']<hypo_lv1)).sum()
+    norm1 = ((df['glc']>=hypo_lv1 )& (df['glc']<=norm_tight)).sum()
+    norm2 = ((df['glc']>=norm_tight )& (df['glc']<=hyper_lv1)).sum()
+    hyper1 = ((df['glc']>hyper_lv1) & (df['glc']<=hyper_lv2)).sum()
+    hyper2 = (df['glc']>hyper_lv2).sum()
+    return [hypo2, hypo1, norm1, norm2, hyper1, hyper2]
     
 
-def tir_pie(df):
-    values = get_pie(df.glc)
-    labels = ['Level 2 hypoglycemia (<3mmol/L)', 'Level 1 hypoglycemia (3-3.9mmol/L)', 'Normal range (3.9-10mmol/L)', 'Level 1 hyperglycemia (10-13.9mmol/L)','Level 2 hyperglycemia (>13.9mmol/L)',]
+def tir_pie(df, ID=None):
+    if 'ID' in df.columns:
+        ID = ID or df['ID'].iloc[0]
+        df = df.loc[df['ID']==ID]
+
+    values = get_pie(df)
+    labels = ['Level 2 hypoglycemia (<3mmol/L)', 'Level 1 hypoglycemia (3-3.9mmol/L)', 'Normal range 1 (3.9-7.8mmol/L)','Normal range 2 (3.9-10mmol/L)', 'Level 1 hyperglycemia (10-13.9mmol/L)','Level 2 hyperglycemia (>13.9mmol/L)',]
     
     fig = go.Figure()
-    fig.add_trace(go.Pie(values=values, labels=labels, marker_colors=colors, opacity=0.5),)
+    fig.add_trace(go.Pie(values=values, labels=labels),) # marker_colors=COLORS, ,opacity=0.5
     fig.update_layout(
         title = 'Percentage time in range')
         
     return fig
 
-def agp(df):
+def agp(df, ID=None):
+    if 'ID' in df.columns:
+        ID = ID or df['ID'].iloc[0]
+        df = df.loc[df['ID']==ID]
+    
+    units = preprocessing.detect_units(df)
+
     df.time = pd.to_datetime(df.time)
     grouped = df.set_index('time').groupby(pd.Grouper(freq='15min')).mean()['glc']
     group_frame = grouped.reset_index().dropna()
@@ -142,7 +204,7 @@ def agp(df):
     #fig.update_yaxes(showgrid=False, zeroline=False)
     fig.update_layout(
         title = 'Ambulatory glucose profile',
-        yaxis_title = 'Glucose (mmol/L)',
+        yaxis_title = f'Glucose ({units})',
         xaxis_title = 'Time (hr)',
         xaxis = dict(tickmode = 'array',
             tickvals = tick_values,
@@ -153,15 +215,14 @@ def agp(df):
 
 ### Group figs
 
-def tir_bargraph(df):
-    y_value = ['TIR level 2 hypoglycemia (%)',
+def tir_bargraph(results_df):
+    melted = results_df[['ID', 'TIR level 2 hypoglycemia (%)',
                'TIR level 1 hypoglycemia (%)', 
                'TIR normal 1 (%)',
                'TIR normal 2 (%)',
                'TIR level 1 hyperglycemia (%)',
-               'TIR level 2 hyperglycemia (%)']
-
-    fig = px.bar(df, x='ID', y=y_value)
+               'TIR level 2 hyperglycemia (%)']].melt(id_vars='ID')
+    fig = px.bar(melted, x='ID', y='value', color='variable')
     return fig
 
 def create_bargraph(df, y_axis):

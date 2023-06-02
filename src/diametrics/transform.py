@@ -39,6 +39,10 @@ def convert_libre(df):
     
     # Convert to datetime
     df['time'] = pd.to_datetime(df['time'])
+
+    # Drop and sort
+    df = df.dropna(subset=['time', 'glc']).sort_values('time').reset_index(drop=True)
+    
     return df
 
 
@@ -66,10 +70,10 @@ def convert_dexcom(df):
     df.columns = ['time', 'glc']
     # Convert to datetime
     df['time'] = pd.to_datetime(df['time'])
-
-    df.reset_index(inplace=True, drop=True)
-    # Replace low high values
-    #df = df.replace({'High': 22.3, 'Low': 2.1, 'HI':22.3, 'LO':2.1, 'hi':22.3, 'lo':2.1})
+    
+    # Drop and sort
+    df = df.dropna(subset=['time', 'glc']).sort_values('time').reset_index(drop=True)
+    
     return df
 
 
@@ -89,10 +93,10 @@ def convert_medtronic(df):
     df.columns = ['date', 'time', 'glc']
     df = df.dropna()
     df['time'] = pd.to_datetime(df.apply(lambda x: combine_datetime(x['date'], x['time']), axis=1))
-    df = df.drop(columns='date')
-    # Rename cols
-    # Replace low high values
-    #df = df.replace({'High': 22.3, 'Low': 2.1, 'HI':22.3, 'LO':2.1, 'hi':22.3, 'lo':2.1})
+    
+    # Drop and sort
+    df = df.dropna(subset=['time', 'glc']).sort_values('time').reset_index(drop=True)
+    
     return df
 
 

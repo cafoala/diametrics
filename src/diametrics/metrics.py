@@ -111,7 +111,6 @@ def all_standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_h
             raise Exception("Data check failed. Please ensure the input DataFrame is valid.")
     
     if 'ID' in df.columns:
-        df.groupby('ID').apply(lambda group: print(group.head()))
         results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group.drop(columns='ID'), return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins), orient='index').T).reset_index().drop(columns='level_1')
         return results
     else:    
@@ -333,18 +332,21 @@ def auc(df):
         df['date'] = df['time'].dt.date
         df['hour'] = df['time'].dt.hour
 
-        # Calculate the AUC for each hourly group using the 'calculate_auc' function
-        hourly_breakdown = df.groupby([df.date, df.hour]).apply(lambda group: calculate_auc(group)).reset_index()
-        hourly_breakdown.columns = ['date', 'hour', 'auc']
+        try:
+            # Calculate the AUC for each hourly group using the 'calculate_auc' function
+            hourly_breakdown = df.groupby([df.date, df.hour]).apply(lambda group: calculate_auc(group)).reset_index()
+            hourly_breakdown.columns = ['date', 'hour', 'auc']
 
-        # Calculate the daily average AUC
-        daily_breakdown = hourly_breakdown.groupby('date').auc.mean()
+            # Calculate the daily average AUC
+            daily_breakdown = hourly_breakdown.groupby('date').auc.mean()
 
-        # Calculate the hourly average AUC
-        hourly_avg = hourly_breakdown['auc'].mean()
-
+            # Calculate the hourly average AUC
+            hourly_avg = hourly_breakdown['auc'].mean()
+        except:
+            hourly_avg = np.nan
         return {f'AUC ({units})': hourly_avg}# 'auc_daily_breakdown': daily_breakdown, 'auc_hourly_breakdown': hourly_breakdown}
     
+    df = copy.copy(df)
     if 'ID' in df.columns:
         results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
         return results
