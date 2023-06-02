@@ -80,6 +80,78 @@ def standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_hyper
     
     else:
         raise Exception
+    
+def all_standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_hyper=None, lv2_hyper=None, additional_tirs=None, event_mins=15, event_long_mins=120):
+    """
+    Calculate standard metrics of glycemic control for glucose data.
+
+    Args:
+        df (DataFrame): Input DataFrame containing glucose data.
+        return_df (bool, optional): Flag indicating whether to return the results as a DataFrame. Defaults to True.
+        lv1_hypo (float, optional): Level 1 hypoglycemia threshold. Defaults to None.
+        lv2_hypo (float, optional): Level 2 hypoglycemia threshold. Defaults to None.
+        lv1_hyper (float, optional): Level 1 hyperglycemia threshold. Defaults to None.
+        lv2_hyper (float, optional): Level 2 hyperglycemia threshold. Defaults to None.
+        additional_tirs (list, optional): Additional time in range thresholds. Defaults to None.
+        event_mins (int, optional): Duration in minutes for identifying glycemic events. Defaults to 15.
+        event_long_mins (int, optional): Duration in minutes for identifying long glycemic events. Defaults to 120.
+
+    Returns:
+        DataFrame or dict: Calculated standard metrics as a DataFrame if return_df is True, or as a dictionary if return_df is False.
+
+    Raises:
+        Exception: If the input DataFrame fails the data check.
+
+    """
+    if check_df(df):
+        results = {}
+
+        # Drop rows with missing time or glucose values
+        df = df.dropna(subset=['time', 'glc']).reset_index(drop=True)
+        
+        # Amount of data available
+        data_suff = data_sufficiency(df)
+        data_suff['Days'] = str(pd.to_datetime(data_suff['End DateTime']) - pd.to_datetime(data_suff['Start DateTime']))
+        results.update(data_suff)
+        
+        # Basic metrics
+        individual_metrics = {'Average glucose': average_glc(df), 
+                              'eA1c (%)': ea1c(df), 
+                              'AUC': auc(df)['avg_hourly_auc']}
+        results.update(individual_metrics)
+        
+        # Glycemic variability
+        glyc_var = glycemic_variability(df)
+        results.update(glyc_var)
+
+        # LBGI and HBGI
+        bgi_results = bgi(df)
+        results.update(bgi_results)
+        
+        # MAGE
+        mage_results = mage(df)
+        results.update(mage_results)
+
+        # Time in ranges
+        ranges = time_in_range(df)
+        results.update(ranges)
+
+        unique_ranges = unique_time_in_range(df, additional_tirs)
+        results.update(unique_ranges)
+        
+        # New method
+        hypos = glycemic_episodes(df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, event_mins, event_long_mins)
+        results.update(hypos)
+        
+        if return_df: 
+            # Convert to DataFrame
+            results = pd.DataFrame.from_dict([results])
+
+        return results
+    
+    else:
+        raise Exception("Data check failed. Please ensure the input DataFrame is valid.")
+
 
 def check_df(df):
     '''
@@ -134,22 +206,29 @@ def percentiles(df):
         - The percentiles calculated are: 0th, 10th, 25th, 50th (median), 75th, 90th, and 100th.
         - The values are returned as a dictionary with keys representing the percentile labels and values representing the corresponding percentile values.
     """
-    # Calculate the specified percentiles of the 'glc' column in the DataFrame
-    percentile_0, percentile_10, percentile_25, percentile_50, percentile_75, percentile_90, percentile_100 = np.percentile(df['glc'], [0, 10, 25, 50, 75, 90, 100])
+    def run(df):
+        # Calculate the specified percentiles of the 'glc' column in the DataFrame
+        percentile_0, percentile_10, percentile_25, percentile_50, percentile_75, percentile_90, percentile_100 = np.percentile(df['glc'], [0, 10, 25, 50, 75, 90, 100])
 
-    # Create a dictionary with the calculated percentiles
-    percentiles_dict = {
-        'Min. glucose': percentile_0,
-        '10th percentile': percentile_10,
-        '25th percentile': percentile_25,
-        '50th percentile': percentile_50,
-        '75th percentile': percentile_75,
-        '90th percentile': percentile_90,
-        'Max. glucose': percentile_100
-    }
+        # Create a dictionary with the calculated percentiles
+        percentiles_dict = {
+            'Min. glucose': percentile_0,
+            '10th percentile': percentile_10,
+            '25th percentile': percentile_25,
+            '50th percentile': percentile_50,
+            '75th percentile': percentile_75,
+            '90th percentile': percentile_90,
+            'Max. glucose': percentile_100
+        }
 
-    return percentiles_dict
-
+        return percentiles_dict
+    
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
+        return results
+    else:    
+        results = run(df)
+        return results
 
 def glycemic_variability(df):
     """

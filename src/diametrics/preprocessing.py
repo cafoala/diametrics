@@ -117,7 +117,7 @@ def fill_missing_data(df, interval=5, method='pchip', limit=30, order=5):
                                                      limit_area='inside',
                                                      limit_direction='forward',
                                                      limit=limit).mask(m>limit)
-    df_interp = df_interp.round(1).reset_index(drop=True)
+    df_interp = df_interp.round(1).reset_index()
     return df_interp
 
 
