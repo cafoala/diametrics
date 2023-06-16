@@ -52,8 +52,8 @@ def replace_cutoffs(df, remove=False, cap=True, lo_cutoff=2.1, hi_cutoff=22.3):
         - The function also converts the 'glc' column to numeric values and converts the 'time' column to datetime.
     """
     df = copy.copy(df)
-    if remove:
-        df['glc']= pd.to_numeric(df['glc'].replace({'High': lo_cutoff, 'Low': lo_cutoff, 'high': hi_cutoff, 'low': lo_cutoff, 
+    if not remove:
+        df['glc']= pd.to_numeric(df['glc'].replace({'High': hi_cutoff, 'Low': lo_cutoff, 'high': hi_cutoff, 'low': lo_cutoff, 
                              'HI':hi_cutoff, 'LO':lo_cutoff, 'hi':hi_cutoff, 'lo':lo_cutoff}))
 
         if cap:
