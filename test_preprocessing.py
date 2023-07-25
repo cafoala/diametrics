@@ -100,3 +100,35 @@ def test_set_time_frame():
     
     assert cut_df['time'].astype(str).tolist() == ['2021-03-23 04:11:00', '2021-03-23 04:26:00',
                                                     '2021-03-23 04:41:00', '2021-03-23 04:56:00'] 
+    
+
+# Test detect_units function
+def test_detect_units():
+    # Sample data
+    df1 = pd.DataFrame({'glc': [22.3, 22.3, 10, 2.1]})
+    df2 = pd.DataFrame({'glc': [75, 81, 84,np.nan, 86]})
+    result1 = preprocessing.detect_units(df1)
+    
+    # Test for 'mmol/L'
+    assert result1 == 'mmol/L'
+
+    # Test for 'mg/dL'
+    result2 = preprocessing.detect_units(df2)
+    assert result2 == 'mg/dL'
+
+# Test change_units function
+def test_change_units():
+    # Sample data
+    df1 = pd.DataFrame({'glc': [22.3, 22.3, 10, 2.1]})
+    df2 = pd.DataFrame({'glc': [75, 81, 84, np.nan, 86]})
+
+    # Test for 'mg/dL' unit
+    result1 = preprocessing.change_units(df1)
+    expected_values1 = [400, 400, 180, 38]
+    assert result1['glc'].tolist() == expected_values1
+
+    # Test for 'mmol/L' unit
+    result2 = preprocessing.change_units(df2)
+    result2 = result2.fillna(-1)
+    expected_values2 = [4.2, 4.5, 4.7, -1, 4.8]
+    assert result2['glc'].tolist() == expected_values2
