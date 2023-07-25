@@ -5,7 +5,6 @@ import pytest
 import sys 
 #sys.path.append('..')
 from datetime import datetime, timedelta
-
 from src.diametrics import preprocessing
 
 dxcm_dt = ['2023-03-08T00:09:00',
@@ -91,3 +90,13 @@ def test_fill_missing_data():
     result = result.fillna(-1)
     expected_values = [6.3, 6.3, 6.4, 6.5, -1, -1, -1, 6.5]
     assert result['glc'].tolist() == expected_values
+
+def test_set_time_frame():
+    df_lib = pd.DataFrame({'time': libre_dt, 
+                           'glc': [6.3, 6.3, 6.4, 6.5,
+                                   6.4, 6.3, 6.4, 6.5]})
+    df_lib['time'] = pd.to_datetime(df_lib['time'])
+    cut_df = preprocessing.set_time_frame(df_lib, ['03-23-2021 04:11 AM', '03-23-2021 05:11 AM'])
+    
+    assert cut_df['time'].astype(str).tolist() == ['2021-03-23 04:11:00', '2021-03-23 04:26:00',
+                                                    '2021-03-23 04:41:00', '2021-03-23 04:56:00'] 
