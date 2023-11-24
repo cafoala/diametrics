@@ -7,7 +7,8 @@ from datetime import timedelta
 import statistics
 from sklearn import metrics
 # ASK MIKE/MICHAEL ABOUT THIS
-from src.diametrics import _glycemic_events_helper, preprocessing
+#from src.diametrics 
+import _glycemic_events_helper, preprocessing
 #import src.diametrics._glycemic_events_helper as _glycemic_events_helper
 #import src.diametrics._glycemic_events_dicts as _glycemic_events_dicts
 
@@ -111,7 +112,7 @@ def all_standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_h
             raise Exception("Data check failed. Please ensure the input DataFrame is valid.")
     
     if 'ID' in df.columns:
-        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group.drop(columns='ID'), return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins), orient='index').T).reset_index().drop(columns='level_1')
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group, return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins), orient='index').T).reset_index().drop(columns='level_1') # .drop(columns='ID')
         return results
     else:    
         results = run(df, return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins)
