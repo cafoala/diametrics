@@ -33,7 +33,7 @@ UNIT_THRESHOLDS = {
 }
 
     
-def all_standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_hyper=None, lv2_hyper=None, additional_tirs=None, event_mins=15, event_long_mins=120):
+def all_standard_metrics(df, gap_size=None, lv1_hypo=None, lv2_hypo=None, lv1_hyper=None, lv2_hyper=None, additional_tirs=None, event_mins=15, event_long_mins=120):
     """
     Calculate standard metrics of glycemic control for glucose data.
 
@@ -55,16 +55,13 @@ def all_standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_h
         Exception: If the input DataFrame fails the data check.
 
     """
-    def run(df, return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins):
+    def run(df, gap_size, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins):
         if check_df(df):
             results = {}
-
             # Drop rows with missing time or glucose values
             df = df.dropna(subset=['time', 'glc']).reset_index(drop=True)
-            
             # Amount of data available
-            data_suff = data_sufficiency(df)
-            data_suff['Days'] = str(pd.to_datetime(data_suff['End DateTime']) - pd.to_datetime(data_suff['Start DateTime']))
+            data_suff = data_sufficiency(df, gap_size=gap_size)
             results.update(data_suff)
             
             # Average glucose
@@ -112,10 +109,10 @@ def all_standard_metrics(df, return_df=True, lv1_hypo=None, lv2_hypo=None, lv1_h
             raise Exception("Data check failed. Please ensure the input DataFrame is valid.")
     
     if 'ID' in df.columns:
-        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group, return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins), orient='index').T).reset_index().drop(columns='level_1') # .drop(columns='ID')
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group[['time', 'glc']], gap_size, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins), orient='index').T).reset_index().drop(columns='level_1')
         return results
     else:    
-        results = run(df, return_df, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins)
+        results = run(df, gap_size,  lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins)
         return results    
     
 
@@ -444,8 +441,8 @@ def time_in_range(df):
 
         # Calculate the percentage of readings within each threshold range
         tir_norm = np.around(np.sum((series >= hypo_lv1) & (series <= hyper_lv1)) / df_len * 100, decimals=2)
-        tir_norm_1 = np.around(np.sum((series >= hypo_lv1) & (series < norm_tight)) / df_len * 100, decimals=2)
-        tir_norm_2 = np.around(np.sum((series >= norm_tight) & (series <= hyper_lv1)) / df_len * 100, decimals=2)
+        tir_norm_1 = np.around(np.sum((series >= hypo_lv1) & (series <= norm_tight)) / df_len * 100, decimals=2)
+        #tir_norm_2 = np.around(np.sum((series >= norm_tight) & (series <= hyper_lv1)) / df_len * 100, decimals=2)
         tir_lv1_hypo = np.around(np.sum((series < hypo_lv1) & (series >= hypo_lv2)) / df_len * 100, decimals=2)
         tir_lv2_hypo = np.around(np.sum(series < hypo_lv2) / df_len * 100, decimals=2)
         tir_lv1_hyper = np.around(np.sum((series <= hyper_lv2) & (series > hyper_lv1)) / df_len * 100, decimals=2)
@@ -454,8 +451,8 @@ def time_in_range(df):
         # Return the calculated values as a dictionary
         return {
             'TIR normal (%)': tir_norm,
-            'TIR normal 1 (%)': tir_norm_1,
-            'TIR normal 2 (%)': tir_norm_2,
+            'TIR normal (tight) (%)': tir_norm_1,
+            #'TIR normal 2 (%)': tir_norm_2,
             'TIR level 1 hypoglycemia (%)': tir_lv1_hypo,
             'TIR level 2 hypoglycemia (%)': tir_lv2_hypo,
             'TIR level 1 hyperglycemia (%)': tir_lv1_hyper,
@@ -556,7 +553,7 @@ def glycemic_episodes(df, hypo_lv1_thresh=None, hypo_lv2_thresh=None, hyper_lv1_
         results = run(df, hypo_lv1_thresh, hypo_lv2_thresh, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins)
         return results
 
-def data_sufficiency(df, start_time=None, end_time=None):
+def data_sufficiency(df, start_time=None, end_time=None, gap_size=None):
     """
     Calculate the data sufficiency percentage based on the provided DataFrame, gap size, and time range.
 
@@ -578,20 +575,21 @@ def data_sufficiency(df, start_time=None, end_time=None):
         - The gap size must be either 5 or 15. Otherwise, a ValueError is raised.
         - The data sufficiency percentage is calculated as the ratio of non-null values to the total expected values.
     """
-    def run(df, start_time, end_time):
+    def run(df, gap_size, start_time, end_time):
         # Determine start and end time from the DataFrame if not provided
         start_time = start_time or df['time'].iloc[0]
         end_time = end_time or df['time'].iloc[-1]
+        days = (end_time-start_time).total_seconds()/86400
 
         # Subset the DataFrame based on the provided time range
         df = df.loc[(df['time'] >= start_time) & (df['time'] <= end_time)]
 
         # Calculate the interval size
-        mode_gap = df['time'].diff().mode().iloc[0]
+        gap_size = timedelta(minutes=gap_size) or df['time'].diff().mode().iloc[0]
         # If it doesn't conform to 5 or 15 then don't count it
-        if ((timedelta(minutes=4) < mode_gap) & (mode_gap < timedelta(minutes=6))):
+        if ((timedelta(minutes=4) < gap_size) & (gap_size < timedelta(minutes=6))):
             freq = '5min'
-        elif ((timedelta(minutes=14) < mode_gap) & (mode_gap < timedelta(minutes=16))):
+        elif ((timedelta(minutes=14) < gap_size) & (gap_size < timedelta(minutes=16))):
             freq = '15min'
         else:
             raise ValueError('Invalid gap size. Gap size must be 5 or 15.')
@@ -599,7 +597,7 @@ def data_sufficiency(df, start_time=None, end_time=None):
         # Calculate the number of non-null values
         number_readings = sum(df.set_index('time').groupby(pd.Grouper(freq=freq)).count()['glc'] > 0)
         # Calculate the total expected readings based on the start and end of the time range
-        total_readings = ((end_time - start_time) + mode_gap) / mode_gap
+        total_readings = ((end_time - start_time) + gap_size) / gap_size
 
         # Calculate the data sufficiency percentage
         if number_readings >= total_readings:
@@ -607,17 +605,19 @@ def data_sufficiency(df, start_time=None, end_time=None):
         else:
             data_sufficiency = number_readings * 100 / total_readings
 
+
         return {
             'Start DateTime': str(start_time.round('min')),
             'End DateTime': str(end_time.round('min')),
+            'Days':days,
             'Data Sufficiency (%)': np.round(data_sufficiency, 1)
         }
     
     if 'ID' in df.columns:
-        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group, start_time, end_time), orient='index').T).reset_index().drop(columns='level_1')
+        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group, gap_size, start_time, end_time), orient='index').T).reset_index().drop(columns='level_1')
         return results
     else:    
-        results = run(df, start_time, end_time)
+        results = run(df, gap_size, start_time, end_time)
         return results
 
 def calc_bgi(glucose, units):
