@@ -48,18 +48,21 @@ def convert_libre(df):
     # Keep important columns based on column names
     if 'Historic Glucose(mmol/L)' in df.columns:
         df = df.loc[:, ('Meter Timestamp', 'Historic Glucose(mmol/L)', 'Scan Glucose(mmol/L)')]
+        dayfirst = True
     elif 'Historic Glucose(mg/dL)' in df.columns:
         df = df.loc[:, ('Meter Timestamp', 'Historic Glucose(mg/dL)', 'Scan Glucose(mg/dL)')]
+        dayfirst = False
     elif 'Historic Glucose mmol/L' in df.columns:
         df = df.loc[:, ('Device Timestamp', 'Historic Glucose mmol/L', 'Scan Glucose mmol/L')]
+        dayfirst = True
     else:
         df = df = df.loc[:, ('Device Timestamp', 'Historic Glucose mg/dL', 'Scan Glucose mg/dL')]
-
+        dayfirst = False
     # Rename columns
     df.columns = ['time', 'glc', 'scan_glc']
 
     # Convert 'time' column to datetime
-    df['time'] = pd.to_datetime(df['time'])
+    df['time'] = pd.to_datetime(df['time'], dayfirst=dayfirst)
 
     # Drop NaN values and sort by 'time'
     df = df.dropna(subset=['time', 'glc']).sort_values('time').reset_index(drop=True)

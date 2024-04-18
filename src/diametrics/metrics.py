@@ -279,30 +279,6 @@ def ea1c(df):
         results = run(df)
         return results    
 
-def calculate_auc(df):
-    """
-    Calculate the area under the curve (AUC) for a group of glucose readings.
-
-    Args:
-        df (pandas.DataFrame): The DataFrame containing a 'glc' column with glucose readings and a 'time' column with timestamps.
-
-    Returns:
-        float: The average AUC for the group.
-
-    Note:
-        - The function calculates the AUC using the 'glc' values and the corresponding time differences from the start time.
-        - The time differences are converted to hours for AUC calculation.
-        - If the DataFrame has only one row, it returns np.nan.
-    """
-    if df.shape[0] > 1:
-        start_time = df.time.iloc[0]
-        mins_from_start = df.time.apply(lambda x: x - start_time)
-        df['hours_from_start'] = mins_from_start.apply(lambda x: (x.total_seconds() / 60) / 60)
-        avg_auc = metrics.auc(df['hours_from_start'], df['glc'])
-        return avg_auc
-    else:
-        return np.nan
-        
 
 def auc(df):
     """
@@ -326,23 +302,13 @@ def auc(df):
             units = 'mmol h/L'
         else:
             units = 'mg h/dL'
-        # Add 'date' and 'hour' columns to the DataFrame based on the 'time' column
-        df['date'] = df['time'].dt.date
-        df['hour'] = df['time'].dt.hour
+        
+        if df.shape[0] < 2:
+            overall_auc = np.nan
+        else:
+            overall_auc = 0.5 * (df['glc'].values[1:] + df['glc'].values[:-1]).mean()
 
-        try:
-            # Calculate the AUC for each hourly group using the 'calculate_auc' function
-            hourly_breakdown = df.groupby([df.date, df.hour]).apply(lambda group: calculate_auc(group)).reset_index()
-            hourly_breakdown.columns = ['date', 'hour', 'auc']
-
-            # Calculate the daily average AUC
-            daily_breakdown = hourly_breakdown.groupby('date').auc.mean()
-
-            # Calculate the hourly average AUC
-            hourly_avg = hourly_breakdown['auc'].mean()
-        except:
-            hourly_avg = np.nan
-        return {f'AUC ({units})': hourly_avg}# 'auc_daily_breakdown': daily_breakdown, 'auc_hourly_breakdown': hourly_breakdown}
+        return {f'AUC ({units})': overall_auc}# 'auc_daily_breakdown': daily_breakdown, 'auc_hourly_breakdown': hourly_breakdown}
     
     df = copy.copy(df)
     if 'ID' in df.columns:
@@ -351,6 +317,8 @@ def auc(df):
     else:    
         results = run(df)
         return results
+    
+
     
 def mage(df):
     """
@@ -440,14 +408,14 @@ def time_in_range(df):
         hyper_lv2 = thresholds.get('hyper_lv2')
 
         # Calculate the percentage of readings within each threshold range
-        tir_norm = np.around(np.sum((series >= hypo_lv1) & (series <= hyper_lv1)) / df_len * 100, decimals=2)
-        tir_norm_1 = np.around(np.sum((series >= hypo_lv1) & (series <= norm_tight)) / df_len * 100, decimals=2)
+        tir_norm = np.sum((series >= hypo_lv1) & (series <= hyper_lv1)) / df_len * 100
+        tir_norm_1 = np.sum((series >= hypo_lv1) & (series <= norm_tight)) / df_len * 100
         #tir_norm_2 = np.around(np.sum((series >= norm_tight) & (series <= hyper_lv1)) / df_len * 100, decimals=2)
-        tir_lv1_hypo = np.around(np.sum((series < hypo_lv1) & (series >= hypo_lv2)) / df_len * 100, decimals=2)
-        tir_lv2_hypo = np.around(np.sum(series < hypo_lv2) / df_len * 100, decimals=2)
-        tir_lv1_hyper = np.around(np.sum((series <= hyper_lv2) & (series > hyper_lv1)) / df_len * 100, decimals=2)
-        tir_lv2_hyper = np.around(np.sum(series > hyper_lv2) / df_len * 100, decimals=2)
-
+        tir_lv1_hypo = np.sum((series < hypo_lv1) & (series >= hypo_lv2)) / df_len * 100
+        tir_lv2_hypo = np.sum(series < hypo_lv2) / df_len * 100
+        tir_lv1_hyper = np.sum((series <= hyper_lv2) & (series > hyper_lv1)) / df_len * 100
+        tir_lv2_hyper = np.sum(series > hyper_lv2) / df_len * 100
+        
         # Return the calculated values as a dictionary
         return {
             'TIR normal (%)': tir_norm,
@@ -533,13 +501,13 @@ def glycemic_episodes(df, hypo_lv1_thresh=None, hypo_lv2_thresh=None, hyper_lv1_
 
         # Prepare results dictionary
         results = {'Total number hypoglycemic events': total_hypos, 
-                    'Number LV1 hypoglycemic events': lv1_hypos, 
+                    #'Number LV1 hypoglycemic events': lv1_hypos, 
                     'Number LV2 hypoglycemic events':lv2_hypos, 
                     'Number prolonged hypoglycemic events':prolonged_hypos, 
                     'Avg. length of hypoglycemic events': avg_length_hypos, 
                     'Total time spent in hypoglycemic events':total_time_hypos,
                     'Total number hyperglycemic events':total_hypers, 
-                    'Number LV1 hyperglycemic events':lv1_hypers,
+                    #'Number LV1 hyperglycemic events':lv1_hypers,
                     'Number LV2 hyperglycemic events':lv2_hypers,
                     'Number prolonged hyperglycemic events':prolonged_hypers, 
                     'Avg. length of hyperglycemic events':avg_length_hypers,
