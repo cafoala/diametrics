@@ -31,7 +31,9 @@ def check_df(df):
             return False
         else:
             return True
-        
+
+
+
 def replace_cutoffs(df, remove=False, cap=True, lo_cutoff=2.1, hi_cutoff=22.3):
     """
     Replace values in the 'glc' column of the given DataFrame based on specified cutoffs.

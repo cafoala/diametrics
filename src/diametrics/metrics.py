@@ -162,6 +162,7 @@ def percentiles(df):
         - The values are returned as a dictionary with keys representing the percentile labels and values representing the corresponding percentile values.
     """
     def run(df):
+        df = df.dropna(subset=['time', 'glc'])
         # Calculate the specified percentiles of the 'glc' column in the DataFrame
         percentile_0, percentile_10, percentile_25, percentile_50, percentile_75, percentile_90, percentile_100 = np.percentile(df['glc'], [0, 10, 25, 50, 75, 90, 100])
 
@@ -219,7 +220,10 @@ def glycemic_variability(df):
         return variability_metrics
         
     if 'ID' in df.columns:
-        results = df.groupby('ID').apply(lambda group: pd.DataFrame.from_dict(run(group), orient='index').T).reset_index().drop(columns='level_1')
+        results = df.groupby('ID').apply(
+                lambda group: pd.DataFrame.from_dict(run(group), orient='index').T,
+                include_groups=False
+            ).reset_index().drop(columns='level_1')
         return results
     else:    
         results = run(df)
