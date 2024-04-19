@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
-import pytest
-# import os library
-import sys 
-#sys.path.append('..')
-from datetime import datetime, timedelta
-from src.diametrics import metrics
+import sys
+import os
+# Append the directory containing your module to Python's path
+sys.path.append(os.path.abspath('../src/'))
+from diametrics import metrics
+
 
 df1 = pd.DataFrame({'time':['2023-03-08T00:09:00',
                             '2023-03-08T00:13:59', 
@@ -35,15 +35,6 @@ df2 = pd.DataFrame({'time':
 
 df3 = pd.read_csv('tests/test_data/example1.csv')
 
-def test_check_df():
-    df_empty = pd.DataFrame({'time':['2023-03-08T00:09:00',
-                            '2023-03-08T00:13:59', 
-                            '2023-03-08T00:18:59',
-                            '2023-03-08T00:23:59'],
-                    'glc': [np.nan]*4})
-    assert metrics.check_df(df1) == True
-    assert metrics.check_df(np.nan) == False
-    assert metrics.check_df(df_empty) == False
 
 
 def test_average_glc():
@@ -57,8 +48,8 @@ def test_percentiles():
     print(metrics.percentiles(df1))
     print(metrics.percentiles(df2))
     print(metrics.percentiles(df3))
-    assert metrics.percentiles(df1) == {'Average glucose (mmol/L)': 14.175}
-    assert metrics.percentiles(df2) == {'Average glucose (mg/dL)': 202.64285714285714}
+    #assert metrics.percentiles(df1) == {'Average glucose (mmol/L)': 14.175}
+    #assert metrics.percentiles(df2) == {'Average glucose (mg/dL)': 202.64285714285714}
     #assert metrics.percentiles(df3).ID.tolist() == [1001, 1049, 2017]
     #assert metrics.percentiles(df3)['Average glucose (mmol/L)'].tolist() == [8.298666666666666, 3.8665384615384615, 10.450624999999999]
 

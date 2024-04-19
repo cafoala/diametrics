@@ -8,8 +8,8 @@ import statistics
 from sklearn import metrics
 # ASK MIKE/MICHAEL ABOUT THIS
 #from src.diametrics 
-import _glycemic_events_helper, preprocessing
-#import src.diametrics._glycemic_events_helper as _glycemic_events_helper
+from diametrics import _glycemic_events_helper, preprocessing
+#import src.diametrics._glycemic_events_helper as _glycemic_events_helper, preprocessing
 #import src.diametrics._glycemic_events_dicts as _glycemic_events_dicts
 
 #fift_mins = timedelta(minutes=15)
@@ -56,7 +56,7 @@ def all_standard_metrics(df, gap_size=None, lv1_hypo=None, lv2_hypo=None, lv1_hy
 
     """
     def run(df, gap_size, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, additional_tirs, event_mins, event_long_mins):
-        if check_df(df):
+        if preprocessing.check_df(df):
             results = {}
             # Drop rows with missing time or glucose values
             df = df.dropna(subset=['time', 'glc']).reset_index(drop=True)
@@ -116,22 +116,6 @@ def all_standard_metrics(df, gap_size=None, lv1_hypo=None, lv2_hypo=None, lv1_hy
         return results    
     
 
-def check_df(df):
-    '''
-    Check if the file given is a valid dataframe
-    '''
-    if not isinstance(df, pd.DataFrame):
-        # I want to return this info to user somehow??
-        warnings.warn('Not a dataframe')
-        return False
-    else:
-        # drop any null values in the glc column
-        df = df.dropna(subset=['time', 'glc'])
-        if df.empty:
-            warnings.warn('Empty dataframe')
-            return False
-        else:
-            return True
 
 
 def average_glc(df):

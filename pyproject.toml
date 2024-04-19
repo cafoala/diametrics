@@ -1,29 +1,23 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[project]
+[tool.poetry]
 name = "diametrics"
 version = "0.0.1"
-authors = [
-  { name="Catherine Russon", email="catherine.russon@gmail.com" },
-]
 description = "A package for calculating the metrics of glycemic control for Diabetes from CGM data"
+authors = ["Catherine Russon"]
+license = "MIT License"
 readme = "README.md"
-requires-python = ">=3.9"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
-dependencies = [
-    "pandas ~= 2.0.0",
-    "numpy ~= 1.24.2",
-    "scipy ~= 1.10.1",
-    "scikit-learn ~= 1.2.2",
-    "statistics ~= 1.0.3.5"
-  ]
 
-[project.urls]
-"Homepage" = "https://github.com/cafoala/diametrics"
-"Bug Tracker" = "https://github.com/cafoala/diametrics/issues"
+[tool.poetry.dependencies]
+python = "^3.9"
+pandas = "^2.2.2"
+scipy = "^1.13.0"
+scikit-learn = "^1.4.2"
+statistics = "^1.0.3.5"
+numpy = "^1.26.4"
+ipykernel = "^6.29.4"
+openpyxl = "^3.1.2"
+pytest = "^8.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

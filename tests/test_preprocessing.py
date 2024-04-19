@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
 import pytest
-# import os library
-import sys 
-#sys.path.append('..')
-from datetime import datetime, timedelta
-from src.diametrics import preprocessing
+import sys
+import os
+# Append the directory containing your module to Python's path
+sys.path.append(os.path.abspath('../src/'))
+from diametrics import preprocessing
 
 dxcm_dt = ['2023-03-08T00:09:00',
            '2023-03-08T00:13:59', 

@@ -167,24 +167,27 @@ def transform_directory(directory, device):
     """
     total_cgm = []
     for filename in os.listdir(directory):
-        # Read the file using pandas
-        filepath = directory + '/' + filename
-        df = open_file(filepath)
+        # Check file extension
+        extension = os.path.splitext(filename)[1]
+        if extension in ['.csv', '.xlsx', '.txt']:
+            # Read the file using pandas
+            filepath = directory + '/' + filename
+            df = open_file(filepath)
 
-        # Convert to standard format
-        if device == 'libre':
-            df_std = convert_libre(df)
-        elif device == 'dexcom':
-            df_std = convert_dexcom(df)
-        elif device == 'medtronic':
-            df_std = convert_medtronic(df)
-        else:
-            print('autoprocessing')
+            # Convert to standard format
+            if device == 'libre':
+                df_std = convert_libre(df)
+            elif device == 'dexcom':
+                df_std = convert_dexcom(df)
+            elif device == 'medtronic':
+                df_std = convert_medtronic(df)
+            else:
+                print('autoprocessing')
 
-        # Set ID
-        df_std['ID'] = filename.split('.')[0]
+            # Set ID
+            df_std['ID'] = filename.split('.')[0]
 
-        # Append
-        total_cgm.append(df_std)
+            # Append
+            total_cgm.append(df_std)
 
-    return pd.concat(total_cgm)
+    return pd.concat(total_cgm, ignore_index=True)
