@@ -279,7 +279,7 @@ def agp(df, ID=None, figure_width=800, figure_height=400):
     return fig
 
 
-def tir_bargraph(results_df):
+def tir_bargraph(results_df, units):
     """
     Generates a bar graph representing the time in range (TIR) for different glucose levels.
 
@@ -298,7 +298,7 @@ def tir_bargraph(results_df):
     fig = px.bar(melted, x='ID', y='value', color='variable')
 
     fig.update_layout(
-        title='Ambulatory glucose profile',
+        title='Bargraph',
         yaxis_title=f'Glucose ({units})',
     )
 
