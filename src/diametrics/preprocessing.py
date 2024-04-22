@@ -155,9 +155,9 @@ def set_time_frame(df, window):
     
 def detect_units(df):
     if df['glc'].min() > 35:
-        return 'mg/dL'
+        return 'mg'
     else:
-        return 'mmol/L'
+        return 'mmol'
     
 
 def change_units(df):
@@ -176,7 +176,7 @@ def change_units(df):
         - If the minimum value is less than or equal to 50, the glucose units are converted by multiplying with 0.0557 and rounding to the nearest integer.
     """
     df = copy.copy(df)
-    if detect_units(df)=='mg/dL':
+    if detect_units(df)=='mg':
         # Convert glucose units by multiplying with 0.0557 and rounding to one decimal place
         df['glc'] = (df['glc'] * 0.0557).round(1)
     else:
