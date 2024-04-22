@@ -2,10 +2,10 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from src.diametrics import preprocessing
+from diametrics import preprocessing
 
 UNIT_THRESHOLDS = {
-    'mmol/L': {
+    'mmol': {
         'low': 2.1,
         'norm_tight': 7.8,
         'hypo_lv1': 3.9,
@@ -14,7 +14,7 @@ UNIT_THRESHOLDS = {
         'hyper_lv2': 13.9,
         'high': 27.8
     },
-    'mg/dL': {
+    'mg': {
         'low': 37.7,
         'norm_tight': 140,
         'hypo_lv1': 70,
@@ -25,7 +25,8 @@ UNIT_THRESHOLDS = {
     }
 }
 
-COLORS = ['blue', 'purple', 'grey', 'pink', 'red']
+COLORS = ['blue', 'light-blue', 'grey', 'pink', 'red']
+COLORS = ['#0000FF', '#00BFFF', '#808080', '#FF69B4', '#FF0000']  # From blue to red
 
 def boxplot(df, violin=False):
     """
@@ -46,7 +47,7 @@ def boxplot(df, violin=False):
 
 
 
-def glucose_trace(df, ID=None):
+def glucose_trace(df, ID=None, figure_width=800, figure_height=400):
     """
     Generate a glucose trace plot.
 
@@ -71,8 +72,17 @@ def glucose_trace(df, ID=None):
     hypo_lv1 = thresholds.get('hypo_lv1')
     hypo_lv2 = thresholds.get('hypo_lv2')
     hyper_lv1 = thresholds.get('hyper_lv1')
-    hyper_lv1 = thresholds.get('hyper_lv2')
+    hyper_lv2 = thresholds.get('hyper_lv2')
     high = thresholds.get('high')
+
+    # Determine bounds for the scatter plot
+    if units == 'mmol':
+        low = df['glc'].min()-2
+        high = df['glc'].max()+2
+    else:
+        low = df['glc'].min()-36
+        high = df['glc'].max()+36
+
 
     fig = go.Figure()
     # Create and style traces
@@ -102,13 +112,13 @@ def glucose_trace(df, ID=None):
         #row=1, col=1
     ),
     fig.add_hrect(
-        y0=hyper_lv1, y1="hyper_lv1",
+        y0=hyper_lv1, y1=hyper_lv2,
         fillcolor=COLORS[3], opacity=0.2,
         layer="below", line_width=0,#annotation_text='Level 1 hyperglycemia (10-13.9)', annotation_position="top left",
         #row=1, col=1
     ),
     fig.add_hrect(
-        y0=hyper_lv1, y1=high,
+        y0=hyper_lv2, y1=high,
         fillcolor=COLORS[4], opacity=0.2,
         layer="below", line_width=0,#annotation_text='Level 2 hyperglycemia (>13.9)', annotation_position="top left",
         #row=1, col=1
@@ -116,8 +126,10 @@ def glucose_trace(df, ID=None):
 
     fig.update_layout(
         title = 'Overall glucose trace',
-        yaxis_title = f'Glucose ({units}))',
-        xaxis_title = 'Date'
+        yaxis_title = f'Glucose ({units})',
+        xaxis_title = 'Date',
+        width=figure_width,  # Set the width of the figure
+        height=figure_height  # Set the height of the figure
         )
     return fig
 
@@ -164,7 +176,7 @@ def tir_pie(df, ID=None):
     if 'ID' in df.columns:
         ID = ID or df['ID'].iloc[0]
         df = df.loc[df['ID']==ID]
-
+    print('HEEEELP')
     values = get_pie(df)
     labels = ['Level 2 hypoglycemia (<3mmol/L)', 'Level 1 hypoglycemia (3-3.9mmol/L)', 'Normal range 1 (3.9-7.8mmol/L)','Normal range 2 (3.9-10mmol/L)', 'Level 1 hyperglycemia (10-13.9mmol/L)','Level 2 hyperglycemia (>13.9mmol/L)',]
     
@@ -175,7 +187,7 @@ def tir_pie(df, ID=None):
         
     return fig
 
-def agp(df, ID=None):
+def agp(df, ID=None, figure_width=800, figure_height=400):
     """
     Generates an ambulatory glucose profile plot based on the given DataFrame.
 
@@ -259,7 +271,9 @@ def agp(df, ID=None):
             tickmode='array',
             tickvals=tick_values,
             ticktext=[i.strftime('%I %p') for i in tick_values]
-        )
+        ),
+        width=figure_width,  # Set the width of the figure
+        height=figure_height  # Set the height of the figure
     )
 
     return fig
@@ -282,6 +296,11 @@ def tir_bargraph(results_df):
                'TIR level 1 hyperglycemia (%)',
                'TIR level 2 hyperglycemia (%)']].melt(id_vars='ID')
     fig = px.bar(melted, x='ID', y='value', color='variable')
+
+    fig.update_layout(
+        title='Ambulatory glucose profile',
+        yaxis_title=f'Glucose ({units})',
+    )
 
     return fig
 
