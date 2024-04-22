@@ -28,7 +28,7 @@ UNIT_THRESHOLDS = {
         'hypo_lv1': 70,
         'hypo_lv2': 54,
         'hyper_lv1': 180,
-        'hyper_lv2': 250
+        'hyper_lv2': 'blob' #250
     }
 }
 
