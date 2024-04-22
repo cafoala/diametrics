@@ -1,48 +1,31 @@
-name: Python application test with Poetry
+name: Python CI
 
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'pyproject.toml'
-      - 'poetry.lock'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'pyproject.toml'
-      - 'poetry.lock'
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9, 3.10]
+        python-version: [3.8, 3.9, 3.10]
 
     steps:
     - uses: actions/checkout@v2
-    
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install Poetry
+    - name: Install dependencies
       run: |
-        pip install poetry
+        python -m pip install --upgrade pip
+        pip install pytest
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Install dependencies using Poetry
+    - name: Run tests
       run: |
-        poetry config virtualenvs.create false
-        poetry install
-
-    - name: Run tests with Poetry
-      run: |
-        poetry run pytest tests/test_metrics.py
-        poetry run pytest tests/test_preprocessing.py
-        poetry run pytest tests/test_transform.py
+        pytest
