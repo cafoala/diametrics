@@ -10,8 +10,8 @@ from diametrics import transform
 # Test open_file function
 def test_open_file():
     # File path
-    filepath1 = 'test_data/dexcom/dexcom_eur_01.xlsx'
-    filepath2 = 'test_data/libre/libre_amer_01.csv'
+    filepath1 = 'tests/test_data/dexcom/dexcom_eur_01.xlsx'
+    filepath2 = 'tests/test_data/libre/libre_amer_01.csv'
     # Read the Excel file
     df1 = transform.open_file(filepath1)
     df2 = transform.open_file(filepath2)
@@ -32,7 +32,7 @@ def test_open_csv_file():
 
 def test_open_excel_file():
     # Test reading from an Excel file
-    filepath = 'test_data/example1.xlsx'
+    filepath = 'tests/test_data/example1.xlsx'
     result = transform.open_file(filepath)
     assert isinstance(result, pd.DataFrame)  # Check if the result is a DataFrame
     assert not result.empty  # Ensure the DataFrame is not empty
@@ -43,7 +43,7 @@ def test_open_excel_file():
 # Test convert_libre function
 def test_convert_libre():
     # File path
-    filepath = 'test_data/libre/libre_amer_02.csv' 
+    filepath = 'tests/test_data/libre/libre_amer_02.csv' 
     # Open file
     df = transform.open_file(filepath)
     converted = transform.convert_libre(df)
@@ -61,7 +61,7 @@ def test_convert_libre():
 # Test convert_dexcom function
 def test_convert_dexcom():
     # File path
-    filepath = 'test_data/dexcom/dexcom_eur_02.xlsx'
+    filepath = 'tests/test_data/dexcom/dexcom_eur_02.xlsx'
     # Open file
     df = transform.open_file(filepath)
     converted = transform.convert_dexcom(df)
@@ -73,8 +73,8 @@ def test_convert_dexcom():
 
 def test_transform_directory():
     # Set filepaths
-    filepath1 = 'test_data/dexcom'
-    filepath2 = 'test_data/libre'
+    filepath1 = 'tests/test_data/dexcom'
+    filepath2 = 'tests/test_data/libre'
     
     # Transform directories
     df1 = transform.transform_directory(filepath1, 'dexcom')
