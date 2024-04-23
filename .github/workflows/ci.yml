@@ -11,21 +11,28 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.9, 3.10]
+        python-version: ['3.9', '3.10']  # Ensure version is quoted
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
+
+    - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: Install Poetry
       run: |
-        python -m pip install --upgrade pip
-        pip install pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install poetry
+
+    - name: Configure Poetry
+      run: |
+        poetry config virtualenvs.create false  # Optionally avoid creating virtual environments
+
+    - name: Install dependencies using Poetry
+      run: |
+        poetry install --no-dev  # Skip dev dependencies if not needed for running tests
 
     - name: Run tests
       run: |
-        pytest
+        poetry run pytest
