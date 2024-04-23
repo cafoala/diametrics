@@ -2,7 +2,7 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from diametrics import preprocessing
+from diametrics import preprocessing, metrics
 
 UNIT_THRESHOLDS = {
     'mmol': {
@@ -40,10 +40,19 @@ def boxplot(df, violin=False):
         fig: Plotly figure object representing the box plot or violin plot.
     """
     if violin:
-        return px.violin(df, y='glc', x='ID')
-    else:
-        return px.box(df, x='ID', y="glc")
+        fig = px.violin(df, y='glc', x='ID', box=True)
 
+    else:
+        fig = px.box(df, x='ID', y="glc")
+
+    fig.update_layout(
+        title = 'Overall Glucose Distribution',
+        yaxis_title = 'Glucose',
+        xaxis_title = 'ID',
+        #width=figure_width,  # Set the width of the figure
+        #height=figure_height  # Set the height of the figure
+    )   
+    return fig
 
 
 
@@ -134,32 +143,6 @@ def glucose_trace(df, ID=None, figure_width=800, figure_height=400):
     return fig
 
 
-def get_pie(df):
-    """
-    Calculate the counts for different glucose level ranges.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing glucose data.
-
-    Returns:
-        list: List of values representing the counts for different glucose level ranges.
-    """
-    units = preprocessing.detect_units(df)
-    # Use this to get the thresholds from the global dictionary
-    thresholds = UNIT_THRESHOLDS.get(units, {})
-    norm_tight = thresholds.get('norm_tight')
-    hypo_lv1 = thresholds.get('hypo_lv1')
-    hypo_lv2 = thresholds.get('hypo_lv2')
-    hyper_lv1 = thresholds.get('hyper_lv1')
-    hyper_lv2 = thresholds.get('hyper_lv2')
-    
-    hypo2 = (df['glc']<hypo_lv2).sum()
-    hypo1 = ((df['glc']>=hypo_lv2) & (df['glc']<hypo_lv1)).sum()
-    norm1 = ((df['glc']>=hypo_lv1 )& (df['glc']<=norm_tight)).sum()
-    norm2 = ((df['glc']>=norm_tight )& (df['glc']<=hyper_lv1)).sum()
-    hyper1 = ((df['glc']>hyper_lv1) & (df['glc']<=hyper_lv2)).sum()
-    hyper2 = (df['glc']>hyper_lv2).sum()
-    return [hypo2, hypo1, norm1, norm2, hyper1, hyper2]
     
 
 def tir_pie(df, ID=None):
@@ -176,10 +159,10 @@ def tir_pie(df, ID=None):
     if 'ID' in df.columns:
         ID = ID or df['ID'].iloc[0]
         df = df.loc[df['ID']==ID]
-    print('HEEEELP')
-    values = get_pie(df)
-    labels = ['Level 2 hypoglycemia (<3mmol/L)', 'Level 1 hypoglycemia (3-3.9mmol/L)', 'Normal range 1 (3.9-7.8mmol/L)','Normal range 2 (3.9-10mmol/L)', 'Level 1 hyperglycemia (10-13.9mmol/L)','Level 2 hyperglycemia (>13.9mmol/L)',]
+    labels = ['Level 2 hypoglycemia (<3mmol/L)', 'Level 1 hypoglycemia (3-3.9mmol/L)', 'Normal range 1 (3.9-7.8mmol/L)', 'Normal range 2 (7.8-10mmol/L)', 'Level 1 hyperglycemia (10-13.9mmol/L)','Level 2 hyperglycemia (>13.9mmol/L)',]
     
+    tir = metrics.time_in_range(df)
+    values = [tir['tir_lv2_hypo'], tir['tir_lv1_hypo'], tir['tir_norm_tight'], tir['tir_normal']-tir['tir_norm_tight'], tir['tir_lv1_hyper'], tir['tir_lv2_hyper']]
     fig = go.Figure()
     fig.add_trace(go.Pie(values=values, labels=labels),) # marker_colors=COLORS, ,opacity=0.5
     fig.update_layout(
