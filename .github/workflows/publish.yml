@@ -1,0 +1,36 @@
+name: Publish Python 🐍 package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'  # Adjust this to the version you need
+
+      - name: Install Poetry
+        run: |
+          pip install poetry
+
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create false
+
+      - name: Install dependencies
+        run: |
+          poetry install --no-dev  # Install without dev dependencies
+
+      - name: Build and publish package
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.POETRY_PYPI_TOKEN_PYPI }}
+        run: |
+          poetry build
+          poetry publish --username __token__ --password ${{ secrets.POETRY_PYPI_TOKEN_PYPI }}
