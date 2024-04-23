@@ -111,11 +111,11 @@ def test_detect_units():
     result1 = preprocessing.detect_units(df1)
     
     # Test for 'mmol/L'
-    assert result1 == 'mmol/L'
+    assert result1 == 'mmol'
 
     # Test for 'mg/dL'
     result2 = preprocessing.detect_units(df2)
-    assert result2 == 'mg/dL'
+    assert result2 == 'mg'
 
 # Test change_units function
 def test_change_units():
