@@ -1,9 +1,11 @@
-# diametrics
-A Python package for calculating the metrics for diabetes control from CGM and FGM data.
+# Diametrics
+Diametrics is a Python package and associated [WebApp](https://diametrics.org) designed for the analysis of Continuous Glucose Monitoring (CGM) data. 
 
-The goal of this project is to enable researchers to quickly calculate the metrics of diabetes control outlined in the Internation consensus on the use of continuous glucose monitors in Python.
+The goal of this package is to enable researchers to quickly calculate the metrics of diabetes control outlined in the [international consensus on the use of continuous glucose monitors](https://diabetesjournals.org/care/article/40/12/1631/37000/International-Consensus-on-Use-of-Continuous) in Python.
+ 
 
-The method used for calculating the metrics are all based on the advice given in the consensus.
+Diametrics has functionality for data preprocessing, calculating standard metrics of glycemic control and data visualization, using Plotly.
+
 
 ## Contents 
 The diametrics functions are contained within a metrics.py file. The functions are
