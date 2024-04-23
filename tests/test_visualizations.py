@@ -37,7 +37,7 @@ df2 = pd.DataFrame({'time':
                             280, 290, 300, 310, 320, 320, 400, np.nan]})
 df2['time'] = pd.to_datetime(df2['time'])
 
-df3 = pd.read_csv('test_data/example1.csv')
+df3 = pd.read_csv('../tests/test_data/example1.csv')
 df3['time'] = pd.to_datetime(df3['time'], dayfirst=True)
 
 print(visualizations.agp(df1))
