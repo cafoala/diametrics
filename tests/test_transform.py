@@ -15,6 +15,7 @@ def test_open_file():
     # Read the Excel file
     df1 = transform.open_file(filepath1)
     df2 = transform.open_file(filepath2)
+
     # Test DataFrame shape
     assert df1.shape == (3866, 20)
     assert df2.shape == (1342, 20)
@@ -23,7 +24,7 @@ def test_open_file():
 # Test open_file
 def test_open_csv_file():
     # Test reading from a CSV file
-    filepath = 'test_data/example1.csv'
+    filepath = 'tests/test_data/example1.csv'
     result = transform.open_file(filepath)
     assert isinstance(result, pd.DataFrame)  # Check if the result is a DataFrame
     assert not result.empty  # Ensure the DataFrame is not empty
@@ -91,4 +92,3 @@ def test_transform_directory():
     assert list(df2.columns) == ['time', 'glc', 'scan_glc', 'ID']
     assert df2.glc.iloc[1620:1625].tolist() == ['158', '159', '161', '166', '169']
     assert df2.time.iloc[1620:1625].astype(str).tolist() == ['2021-03-23 16:08:00', '2021-03-23 16:23:00', '2021-03-23 16:38:00', '2021-03-23 16:53:00', '2021-03-23 17:08:00']
-

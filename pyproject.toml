@@ -23,3 +23,16 @@ nbformat = "^5.10.4"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+# in pyproject.toml
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.1.1"
+
+
+# in pyproject.toml
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
+
+
