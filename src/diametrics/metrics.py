@@ -305,7 +305,7 @@ def mage(df):
 
         # Consolidate peaks and troughs, and sort by time
         points = np.sort(np.concatenate((peaks, troughs, [0, len(group) - 1])))
-        selected_points = group.iloc[points]
+        selected_points = group.iloc[points].copy()
 
         # Calculate differences between consecutive points
         selected_points['diff'] = selected_points['glc'].diff().abs()
@@ -385,7 +385,7 @@ def time_in_range(df, units=None):
         })
     
     if 'ID' in df.columns:
-        results = df.groupby('ID').apply(run, units=units).reset_index()        
+        results = df.groupby('ID').apply((lambda group: run(group, units=units)), include_groups=False).reset_index()        
         return results
     else:    
         results = run(df, units)
@@ -448,7 +448,7 @@ def glycemic_episodes(df, units=None, hypo_lv1_thresh=None, hypo_lv2_thresh=None
         return results
     
     if 'ID' in df.columns:
-        results = df.groupby('ID').apply(lambda group: run(group, units, hypo_lv1_thresh, hypo_lv2_thresh, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins))
+        results = df.groupby('ID').apply((lambda group: run(group, units, hypo_lv1_thresh, hypo_lv2_thresh, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins)), include_groups=False)
         return results
     else:    
         results = run(df, units, hypo_lv1_thresh, hypo_lv2_thresh, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins)
@@ -516,7 +516,7 @@ def data_sufficiency(df, start_time=None, end_time=None, gap_size=None):
         })
     
     if 'ID' in df.columns:
-        results = df.groupby('ID').apply(lambda group: run(group, gap_size, start_time, end_time)).reset_index()
+        results = df.groupby('ID').apply((lambda group: run(group, gap_size, start_time, end_time)), include_groups=False).reset_index()
         return results
     else:    
         results = run(df, gap_size, start_time, end_time)

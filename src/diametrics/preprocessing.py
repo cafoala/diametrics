@@ -4,6 +4,7 @@ import numpy as np
 import warnings
 import copy
 
+
 def check_df(df):
     """
     Check if the given object is a valid DataFrame.

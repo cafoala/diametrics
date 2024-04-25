@@ -106,3 +106,18 @@ def test_transform_directory():
     assert list(df2.columns) == ['time', 'glc', 'scan_glc', 'ID']
     assert df2.glc.iloc[1620:1625].tolist() == ['158', '159', '161', '166', '169']
     assert df2.time.iloc[1620:1625].astype(str).tolist() == ['2021-03-23 16:08:00', '2021-03-23 16:23:00', '2021-03-23 16:38:00', '2021-03-23 16:53:00', '2021-03-23 17:08:00']
+
+'''@patch('pandas.read_csv')
+def test_transform_directory(mock_read_csv):
+    # Setup mock
+    mock_read_csv.return_value = pd.DataFrame({
+        'time': ['2023-03-13 18:54:12', '2023-03-13 18:59:12'],
+        'glc': ['158', '159'],
+        'ID': ['1', '2']
+    })
+    
+    # Assuming 'transform_directory' reads a file using 'pd.read_csv'
+    df = transform.transform_directory('dummy_path', 'libre')
+    
+    # Perform your assertions
+    assert df.glc.iloc[0:2].tolist() == ['158', '159']'''

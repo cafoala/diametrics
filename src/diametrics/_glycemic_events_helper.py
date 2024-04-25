@@ -5,7 +5,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 def calc_diff(group):
-    row1 = group.iloc[0]
+    row1 = group.iloc[0].copy()
     endtime = group.iloc[-1]['time_rep']
     starttime = row1['time_rep']
     diff = endtime-starttime
@@ -22,13 +22,13 @@ def collapse_bool_array(df, bool_array):
     # Drop any null glucose readings and reset index
     df_unique.dropna(subset=['glc_rep'], inplace=True)
     df_unique.reset_index(inplace=True, drop=True)
-    diff = df_unique.groupby('unique_number').apply(lambda group: calc_diff(group))
+    diff = df_unique.groupby('unique_number').apply((lambda group: calc_diff(group)), include_groups=False)
     diff = diff.drop(columns=['glc_rep'])#.reset_index()
     return diff
 
 def calc_duration(unique_min, mins):
     # Only keep hypos that are 15 mins or longer (smaller than this doesn't count)
-    results = unique_min[unique_min['diff'] >= timedelta(minutes=mins)]
+    results = unique_min[unique_min['diff'] >= timedelta(minutes=mins)].copy()
 
     # Fill the consec readings with binary value to show whether they are hypos or
     # the periods between hypos
@@ -42,7 +42,7 @@ def calc_duration(unique_min, mins):
 
 def merge_events(results, mins):
     # Group by the unique number, select the min values and select relevant columns
-    results_grouped = results.groupby('unique').min()[['time_rep',  'event', 'diff']] #'glc_rep',
+    results_grouped = results.groupby('unique').min()[['time_rep',  'event', 'diff']].copy() #'glc_rep',
     results_grouped['diff2'] = results_grouped['time_rep'].diff().shift(-1)
     # Drop the non-hypo periods and then drop the hypo column
     final_results = results_grouped.loc[results_grouped['event'] ==
