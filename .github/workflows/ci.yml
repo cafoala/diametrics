@@ -31,8 +31,13 @@ jobs:
 
     - name: Install dependencies using Poetry
       run: |
-        poetry install --with dev  # Skip dev dependencies if not needed for running tests
+        poetry install #--with dev  # Skip dev dependencies if not needed for running tests
 
     - name: Run tests
       run: |
         poetry run pytest
+    
+    - name: Run tests with additional logging
+      run: |
+        poetry run pytest -sv
+    

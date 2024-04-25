@@ -21,6 +21,20 @@ def test_open_file():
     assert df2.shape == (1342, 20)
 
 
+from unittest.mock import patch
+
+def mock_read_csv(filepath):
+    return pd.DataFrame({
+        'time': ['2023-03-08T00:09:00', '2023-03-08T00:13:59'],
+        'glc': [22.3, 22.3]
+    })
+
+@patch('pandas.read_csv', side_effect=mock_read_csv)
+def test_open_csv_file(mock_read_csv):
+    filepath = 'tests/test_data/example1.csv'
+    df = transform.open_file(filepath)
+    assert isinstance(df, pd.DataFrame)
+
 # Test open_file
 def test_open_csv_file():
     # Test reading from a CSV file
