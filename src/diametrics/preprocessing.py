@@ -3,6 +3,7 @@ import datetime
 import numpy as np
 import warnings
 import copy
+pd.set_option('future.no_silent_downcasting', True)
 
 
 def check_df(df):
