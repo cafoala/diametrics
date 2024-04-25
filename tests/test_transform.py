@@ -94,8 +94,7 @@ def test_transform_directory():
     # Transform directories
     df1 = transform.transform_directory(filepath1, 'dexcom')
     df2 = transform.transform_directory(filepath2, 'libre')
-    print(df1)
-    print(df2)
+
     # Test shape
     assert df1.shape == (11531, 3)
     assert df2.shape == (2677, 4)
@@ -105,22 +104,5 @@ def test_transform_directory():
     assert df1.glc.iloc[1620:1625].tolist() == [13.8, 13.6, 13.4, 13.2, 12.8]
     assert df1.time.iloc[1620:1625].astype(str).tolist() == ['2023-03-13 18:54:12', '2023-03-13 18:59:12', '2023-03-13 19:04:12', '2023-03-13 19:09:12', '2023-03-13 19:14:12']
     assert list(df2.columns) == ['time', 'glc', 'scan_glc', 'ID']
-    assert df2.glc.iloc[1620:1625].tolist() == ['158', '159', '161', '166', '169']
-    assert df2.time.iloc[1620:1625].astype(str).tolist() == ['2021-03-23 16:08:00', '2021-03-23 16:23:00', '2021-03-23 16:38:00', '2021-03-23 16:53:00', '2021-03-23 17:08:00']
-
-
-test_transform_directory()
-'''@patch('pandas.read_csv')
-def test_transform_directory(mock_read_csv):
-    # Setup mock
-    mock_read_csv.return_value = pd.DataFrame({
-        'time': ['2023-03-13 18:54:12', '2023-03-13 18:59:12'],
-        'glc': ['158', '159'],
-        'ID': ['1', '2']
-    })
-    
-    # Assuming 'transform_directory' reads a file using 'pd.read_csv'
-    df = transform.transform_directory('dummy_path', 'libre')
-    
-    # Perform your assertions
-    assert df.glc.iloc[0:2].tolist() == ['158', '159']'''
+    assert df2.glc.iloc[1620:1625].tolist() == ['109', '108', '112', '119', '128']
+    assert df2.time.iloc[1620:1625].astype(str).tolist() == ['2021-03-26 01:41:00', '2021-03-26 01:56:00', '2021-03-26 02:11:00', '2021-03-26 02:26:00', '2021-03-26 02:41:00']

@@ -189,5 +189,6 @@ def transform_directory(directory, device):
 
             # Append
             total_cgm.append(df_std)
-
-    return pd.concat(total_cgm, ignore_index=True)
+    final_df = pd.concat(total_cgm, ignore_index=True)
+    final_df = final_df.sort_values(['ID', 'time']).reset_index(drop=True)
+    return final_df
