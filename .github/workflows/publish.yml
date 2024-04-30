@@ -28,6 +28,11 @@ jobs:
         run: |
           poetry install --no-dev  # Install without dev dependencies
 
+      - name: Update version in pyproject.toml
+        run: |
+          VERSION=${GITHUB_REF/refs\/tags\/v/}  # Strip 'refs/tags/v' from GITHUB_REF
+          poetry version $VERSION  # Set the new version in pyproject.toml
+        
       - name: Build and publish package
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.POETRY_PYPI_TOKEN_PYPI }}
