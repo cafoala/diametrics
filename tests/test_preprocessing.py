@@ -92,6 +92,7 @@ def test_fill_missing_data():
     expected_values = [6.3, 6.3, 6.4, 6.5, -1, -1, -1, 6.5]
     assert result['glc'].tolist() == expected_values
 
+
 def test_set_time_frame():
     df_lib = pd.DataFrame({'time': libre_dt, 
                            'glc': [6.3, 6.3, 6.4, 6.5,
@@ -116,6 +117,7 @@ def test_detect_units():
     # Test for 'mg/dL'
     result2 = preprocessing.detect_units(df2)
     assert result2 == 'mg'
+
 
 # Test change_units function
 def test_change_units():
