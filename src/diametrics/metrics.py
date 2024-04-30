@@ -487,7 +487,11 @@ def data_sufficiency(df, start_time=None, end_time=None, gap_size=None):
         df = df.loc[(df['time'] >= start_time) & (df['time'] <= end_time)]
 
         # Calculate the interval size
-        gap_size = timedelta(minutes=gap_size) or df['time'].diff().mode().iloc[0]
+        if gap_size == None:
+            df['time'].diff().mode().iloc[0]
+        else:
+            gap_size = timedelta(minutes=gap_size)
+            
         # If it doesn't conform to 5 or 15 then don't count it
         if ((timedelta(minutes=4) < gap_size) & (gap_size < timedelta(minutes=6))):
             freq = '5min'
