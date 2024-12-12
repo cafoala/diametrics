@@ -33,7 +33,7 @@ UNIT_THRESHOLDS = {
 }
 
     
-def all_standard_metrics(df, units=None, gap_size=None, start_dt=None, end_dt=None, lv1_hypo=None, lv2_hypo=None, lv1_hyper=None, lv2_hyper=None, event_mins=15, event_long_mins=120):
+def all_standard_metrics(df, units=None, gap_size=5, start_dt=None, end_dt=None, lv1_hypo=None, lv2_hypo=None, lv1_hyper=None, lv2_hyper=None, event_mins=15, event_long_mins=120):
     """
     Calculate standard metrics of glycemic control for glucose data.
 
@@ -91,6 +91,10 @@ def all_standard_metrics(df, units=None, gap_size=None, start_dt=None, end_dt=No
             # Time in ranges
             ranges = time_in_range(df, units)
             results.update(ranges)
+
+            # glycemic index (GRI)
+            gri_results = glycemic_risk_index(df, units)
+            results.update(gri_results)
 
             # New method
             hypos = glycemic_episodes(df, units, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, event_mins, event_long_mins)
@@ -390,6 +394,63 @@ def time_in_range(df, units=None):
     else:    
         results = run(df, units)
         return results
+
+
+def glycemic_risk_index(df, units=None):
+    """
+    Calculate the Glycemia Risk Index (GRI) based on glucose readings and time-in-range metrics.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing a 'glc' column with glucose readings.
+        units (str): The units of glucose readings, 'mmol' for mmol/L or 'mg' for mg/dL.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the GRI score.
+    """
+    # Define the GRI weights for each glucose range
+    GRI_WEIGHTS = {
+        'severe_hypoglycemia': 50,  # <54 mg/dL
+        'hypoglycemia': 20,        # 54–69 mg/dL
+        'euglycemia': 0,           # 70–180 mg/dL
+        'hyperglycemia': 20,       # 181–250 mg/dL
+        'severe_hyperglycemia': 50 # >250 mg/dL
+    }
+
+    # Check the units of glucose readings if not provided
+    if units is None:
+        units = preprocessing.detect_units(df)  # Assuming 'preprocessing.detect_units' is implemented
+
+    def run(df, units):
+        # Calculate time-in-range metrics using the existing function
+        tir_results = time_in_range(df, units)
+        
+        # Extract the relevant percentages
+        severe_hypo = tir_results['tir_lv2_hypo']  # <54 mg/dL
+        hypo = tir_results['tir_lv1_hypo']         # 54–69 mg/dL
+        euglycemia = tir_results['tir_normal']     # 70–180 mg/dL
+        hyper = tir_results['tir_lv1_hyper']       # 181–250 mg/dL
+        severe_hyper = tir_results['tir_lv2_hyper'] # >250 mg/dL
+
+        # Calculate the GRI score based on weights
+        gri_score = (
+            (severe_hypo * GRI_WEIGHTS['severe_hypoglycemia']) +
+            (hypo * GRI_WEIGHTS['hypoglycemia']) +
+            (euglycemia * GRI_WEIGHTS['euglycemia']) +
+            (hyper * GRI_WEIGHTS['hyperglycemia']) +
+            (severe_hyper * GRI_WEIGHTS['severe_hyperglycemia'])
+        ) / 100  # Normalize to a scale of 0–100
+        
+        return pd.Series({'gri': gri_score})
+
+    if 'ID' in df.columns:
+        # Apply the function to each group if the DataFrame is grouped by 'ID'
+        results = df.groupby('ID').apply((lambda group: run(group, units=units)), include_groups=False).reset_index()
+        return results
+    else:
+        # Apply the function directly if there are no groups
+        results = run(df, units)
+        return pd.DataFrame([results])  # Convert to a DataFrame for consistency
+
 
 
 def glycemic_episodes(df, units=None, hypo_lv1_thresh=None, hypo_lv2_thresh=None, hyper_lv1_thresh=None, hyper_lv2_thresh=None, mins=15, long_mins=120):
