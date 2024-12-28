@@ -69,7 +69,7 @@ def all_standard_metrics(df, units=None, gap_size=5, start_dt=None, end_dt=None,
             results.update(avg_glc_result)
 
             # eA1c
-            ea1c_result = ea1c(df)
+            ea1c_result = ea1c(df, units)
             results.update(ea1c_result)
             
             # Glycemic variability
