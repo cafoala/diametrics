@@ -409,11 +409,11 @@ def glycemic_risk_index(df, units=None):
     """
     # Define the GRI weights for each glucose range
     GRI_WEIGHTS = {
-        'severe_hypoglycemia': 50,  # <54 mg/dL
-        'hypoglycemia': 20,        # 54–69 mg/dL
+        'severe_hypoglycemia': 3,  # <54 mg/dL
+        'hypoglycemia': 2.4,        # 54–69 mg/dL
         'euglycemia': 0,           # 70–180 mg/dL
-        'hyperglycemia': 20,       # 181–250 mg/dL
-        'severe_hyperglycemia': 50 # >250 mg/dL
+        'hyperglycemia': 1.6,       # 181–250 mg/dL
+        'severe_hyperglycemia': 0.8 # >250 mg/dL
     }
 
     # Check the units of glucose readings if not provided
@@ -432,13 +432,13 @@ def glycemic_risk_index(df, units=None):
         severe_hyper = tir_results['tir_lv2_hyper'] # >250 mg/dL
 
         # Calculate the GRI score based on weights
-        gri_score = (
+        gri_score = min(
             (severe_hypo * GRI_WEIGHTS['severe_hypoglycemia']) +
             (hypo * GRI_WEIGHTS['hypoglycemia']) +
             (euglycemia * GRI_WEIGHTS['euglycemia']) +
             (hyper * GRI_WEIGHTS['hyperglycemia']) +
-            (severe_hyper * GRI_WEIGHTS['severe_hyperglycemia'])
-        ) / 100  # Normalize to a scale of 0–100
+            (severe_hyper * GRI_WEIGHTS['severe_hyperglycemia']), 
+            100)  # cap to 100
         
         return pd.Series({'gri': gri_score})
 
