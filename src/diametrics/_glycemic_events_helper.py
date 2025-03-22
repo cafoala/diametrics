@@ -62,51 +62,31 @@ def merge_events(results, mins):
     final_results.reset_index(drop=True, inplace=True)
     return final_results
 
-def overlap(row, lv2_events):
-    for index, row_lv2 in lv2_events.iterrows():
-        if row['start_time'] <= row_lv2['time_rep'] <= row['end_time']:
-            return [True, row_lv2['prolonged']]
-    else:
-        return [False, False]
 
 def calculate_episodes(df, hypo, thresh, thresh_lv2, mins, long_mins):
     if hypo:
-        bool_array = df['glc'] < thresh
+        bool_array_lv1 = df['glc'] < thresh
         bool_array_lv2 = df['glc'] < thresh_lv2
     else:
-        bool_array = df['glc'] > thresh
+        bool_array_lv1 = df['glc'] > thresh
         bool_array_lv2 = df['glc'] > thresh_lv2
 
-    # All events
-    unique_min = collapse_bool_array(df, bool_array)
-    results = calc_duration(unique_min, mins)
-    #results_lv2 = calc_duration(unique_min_lv2, mins)
-    final_results = merge_events(results, mins)
-    if final_results.empty:
-        return 0, 0, 0, 0, 0, 0
-    # Level 2 hypos
+    # Level 1 events
+    unique_min_lv1 = collapse_bool_array(df, bool_array_lv1)
+    results_lv1 = calc_duration(unique_min_lv1, mins)
+    final_results_lv1 = merge_events(results_lv1, mins)
+    number_of_lv1 = final_results_lv1.shape[0]
+
+    # Level 2 events
     unique_min_lv2 = collapse_bool_array(df, bool_array_lv2)
-    lv2_events = unique_min_lv2.dropna(subset=['consec_readings'])
-    lv2_events = lv2_events[lv2_events['diff']>=timedelta(minutes=mins)]
-    lv2_events['prolonged'] = lv2_events['diff']>=timedelta(minutes=long_mins)
-    final_results[['lv2', 'prolonged']] = final_results.apply(lambda row: overlap(row, lv2_events), axis=1, result_type ='expand')
+    results_lv2 = calc_duration(unique_min_lv2, mins)
+    final_results_lv2 = merge_events(results_lv2, mins)
+    number_of_lv2 = final_results_lv2.shape[0]
 
-    number_of_episodes = final_results.shape[0]
-    number_of_lv2 = final_results.lv2.sum()
-    number_of_lv1 = number_of_episodes - number_of_lv2
-    prolonged = final_results['prolonged'].sum()
-
-    avg_length = final_results.duration.mean().round('1s')
-    total_time = final_results.duration.sum()
-
-    # Return 0s if no hypos and nan if something weird happens
-    if pd.notnull(avg_length):
-        avg_length = avg_length
-        total_time = total_time
-    elif number_of_episodes == 0:
-        avg_length = 0
-        total_time = 0
+    # Prolonged events
+    if hypo:
+        number_extended = (final_results_lv1['duration'] >= timedelta(minutes=long_mins)).sum()
     else:
-        avg_length = np.nan
-        total_time = np.nan
-    return number_of_episodes, number_of_lv1, number_of_lv2, prolonged, str(avg_length), str(total_time)
+        number_extended = (final_results_lv2['duration'] >= timedelta(minutes=long_mins)).sum()
+    print(f'Number of level 1 events: {number_of_lv1}, number of level 2 events: {number_of_lv2}, number of prolonged events: {number_extended}')
+    return number_of_lv1, number_of_lv2, number_extended

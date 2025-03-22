@@ -488,7 +488,6 @@ def glycemic_risk_index(df, units=None):
         return pd.DataFrame([results])  # Convert to a DataFrame for consistency
 
 
-
 def glycemic_episodes(df, units=None, hypo_lv1_thresh=None, hypo_lv2_thresh=None, hyper_lv1_thresh=None, hyper_lv2_thresh=None, mins=15, long_mins=120):
     """
     Calculate the statistics of glycemic episodes (hypoglycemic and hyperglycemic events) based on glucose readings.
@@ -524,24 +523,20 @@ def glycemic_episodes(df, units=None, hypo_lv1_thresh=None, hypo_lv2_thresh=None
         hyper_lv2_thresh = hyper_lv2_thresh or thresholds.get('hyper_lv2')
 
         # Calculate statistics for hypoglycemic events
-        total_hypos, lv1_hypos, lv2_hypos, prolonged_hypos, avg_length_hypos, total_time_hypos = _glycemic_events_helper.calculate_episodes(df, True, hypo_lv1_thresh, hypo_lv2_thresh, mins, recovery_mins, long_mins)
+        lv1_hypos, lv2_hypos, prolonged_hypos = _glycemic_events_helper.calculate_episodes(df, True, hypo_lv1_thresh, hypo_lv2_thresh, mins, long_mins)
 
         # Calculate statistics for hyperglycemic events
-        total_hypers, lv1_hypers, lv2_hypers, prolonged_hypers, avg_length_hypers, total_time_hypers = _glycemic_events_helper.calculate_episodes(df, False, hyper_lv1_thresh, hyper_lv2_thresh, mins, recovery_mins,long_mins)
+        lv1_hypers, lv2_hypers, prolonged_hypers = _glycemic_events_helper.calculate_episodes(df, False, hyper_lv1_thresh, hyper_lv2_thresh, mins,long_mins)
 
         # Prepare results dictionary
-        results = pd.Series({'number_hypos': total_hypos, 
-                    #'Number LV1 hypoglycemic events': lv1_hypos, 
+        results = pd.Series({'number_lv1_hypos': total_hypos, 
                     'number_lv2_hypos':lv2_hypos, 
                     'number_prolonged_hypos':prolonged_hypos, 
-                    'avg_length_hypos': avg_length_hypos, 
-                    'total_time_in_hypo':total_time_hypos,
-                    'number_hypers':total_hypers, 
-                    #'Number LV1 hyperglycemic events':lv1_hypers,
+                    'number_lv1_hypers':lv1_hypers, 
                     'number_lv2_hypers':lv2_hypers,
-                    'number_prolonged_hypers':prolonged_hypers, 
-                    'avg_length_hypers':avg_length_hypers,
-                    'total_time_in_hyper':total_time_hypers})
+                    'number_prolonged_hypers':prolonged_hypers
+                    }) 
+ 
         return results
     
     if 'ID' in df.columns:
