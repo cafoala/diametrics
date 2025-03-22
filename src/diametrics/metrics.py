@@ -99,6 +99,10 @@ def all_standard_metrics(df, units=None, gap_size=5, start_dt=None, end_dt=None,
             # New method
             hypos = glycemic_episodes(df, units, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, event_mins, event_long_mins)
             results.update(hypos)
+
+            # GMI
+            gmi_results = gmi(df, units)
+            results.update(gmi_results)
             
             results = pd.DataFrame(results)
 
@@ -180,7 +184,6 @@ def percentiles(df):
     return results
 
 
-
 def glycemic_variability(df):
     """
     Calculate the glycemic variability metrics for glucose readings in the DataFrame.
@@ -251,6 +254,40 @@ def ea1c(df, units=None):
     return results
 
 
+def gmi(df, units=None):
+    """
+    Calculate the Glucose Management Indicator (GMI) from CGM data.
+
+    Args:
+        df (pandas.DataFrame): Must contain a 'glc' column with glucose readings.
+        units (str): 'mmol' or 'mg'. Required.
+
+    Returns:
+        pandas.DataFrame: A DataFrame with GMI values (one per user if 'ID' present).
+    """
+    if units not in ['mmol', 'mg']:
+        raise ValueError("You must specify 'units' as either 'mmol' or 'mg'.")
+
+    def run(group):
+        avg_glc = group['glc'].mean()
+
+        if units == 'mmol':
+            # GMI = 3.31 + 0.02392 × (glucose in mg/dL)
+            # No need to convert manually — just plug in mmol:
+            gmi_result = 3.31 + 0.02392 * (avg_glc * 18.0182)
+        else:  # mg/dL
+            gmi_result = 3.31 + 0.02392 * avg_glc
+
+        return pd.Series({'gmi': round(gmi_result, 2)})
+
+    if 'ID' in df.columns:
+        results = df.groupby('ID').apply(run).reset_index()
+    else:
+        results = run(df)
+        results = pd.DataFrame([results])
+
+    return results
+    
     
 def auc(df):
     """
@@ -290,7 +327,6 @@ def auc(df):
 
     return results
     
-
 
 def mage(df):
     """
@@ -488,10 +524,10 @@ def glycemic_episodes(df, units=None, hypo_lv1_thresh=None, hypo_lv2_thresh=None
         hyper_lv2_thresh = hyper_lv2_thresh or thresholds.get('hyper_lv2')
 
         # Calculate statistics for hypoglycemic events
-        total_hypos, lv1_hypos, lv2_hypos, prolonged_hypos, avg_length_hypos, total_time_hypos = _glycemic_events_helper.calculate_episodes(df, True, hypo_lv1_thresh, hypo_lv2_thresh, mins, long_mins)
+        total_hypos, lv1_hypos, lv2_hypos, prolonged_hypos, avg_length_hypos, total_time_hypos = _glycemic_events_helper.calculate_episodes(df, True, hypo_lv1_thresh, hypo_lv2_thresh, mins, recovery_mins, long_mins)
 
         # Calculate statistics for hyperglycemic events
-        total_hypers, lv1_hypers, lv2_hypers, prolonged_hypers, avg_length_hypers, total_time_hypers = _glycemic_events_helper.calculate_episodes(df, False, hyper_lv1_thresh, hyper_lv2_thresh, mins, long_mins)
+        total_hypers, lv1_hypers, lv2_hypers, prolonged_hypers, avg_length_hypers, total_time_hypers = _glycemic_events_helper.calculate_episodes(df, False, hyper_lv1_thresh, hyper_lv2_thresh, mins, recovery_mins,long_mins)
 
         # Prepare results dictionary
         results = pd.Series({'number_hypos': total_hypos, 
