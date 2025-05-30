@@ -3,7 +3,7 @@ name = "diametrics"
 version = "0.0.1"
 description = "A package for calculating the metrics of glycemic control for Diabetes from CGM data"
 authors = ["Catherine Russon"]
-license = "GLP"
+license = "GPL-3.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
