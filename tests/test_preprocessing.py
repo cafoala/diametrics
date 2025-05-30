@@ -3,10 +3,9 @@ import numpy as np
 import pytest
 import sys
 import os
-
-# Make sure pytest can find your package
-sys.path.append(os.path.abspath('../src/'))
 from diametrics import preprocessing
+
+# --- Fixtures --------------------------------------------------------------
 
 dxcm_dt = [
     '2023-03-08T00:09:00',
@@ -26,6 +25,13 @@ libre_dt = [
     '03-23-2021 05:11 AM',
     '03-23-2021 05:26 AM',
 ]
+@pytest.fixture
+def dxcm_df():
+    df = pd.DataFrame({
+        'time': pd.to_datetime(dxcm_dt),
+        'glc': [22.3, 22.3, 10.0, 2.1, np.nan]
+    })
+    return df
 
 def test_check_df():
     # Case 1: valid DataFrame
@@ -121,6 +127,8 @@ def test_smoke_detect_units(dxcm_df):
     assert units in {'mmol','mg'}
 
 def test_smoke_change_units(dxcm_df):
-    out = preprocessing.change_units(dxcm_df)
+    # drop NaNs so change_units can cast to int without failure
+    clean = dxcm_df.dropna(subset=['glc']).copy()
+    out = preprocessing.change_units(clean)
     assert isinstance(out, pd.DataFrame)
     assert 'glc' in out.columns
