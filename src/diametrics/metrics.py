@@ -6,14 +6,8 @@ import warnings
 from datetime import timedelta
 import statistics
 from sklearn import metrics
-# ASK MIKE/MICHAEL ABOUT THIS
-#from src.diametrics 
-from diametrics import _glycemic_events_helper, preprocessing
-#import src.diametrics._glycemic_events_helper as _glycemic_events_helper, preprocessing
-#import src.diametrics._glycemic_events_dicts as _glycemic_events_dicts
+import _glycemic_events_helper, preprocessing
 
-#fift_mins = timedelta(minutes=15)
-#thirt_mins = timedelta(minutes=30)
 
 UNIT_THRESHOLDS = {
     'mmol': {
@@ -113,7 +107,7 @@ def all_standard_metrics(df, units=None, gap_size=5, start_dt=None, end_dt=None,
     
     if 'ID' in df.columns:
         results = df.groupby('ID').apply((lambda group: run(group, units, gap_size, start_dt, end_dt, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, event_mins, event_long_mins)), include_groups=False)
-        results = pd.DataFrame(results).reset_index().drop(columns='level_1')
+        results = pd.DataFrame(results).reset_index()#.drop(columns='level_1')
         return results
     else:    
         results = run(df, units, gap_size, start_dt, end_dt, lv1_hypo, lv2_hypo, lv1_hyper, lv2_hyper, event_mins, event_long_mins)
@@ -529,7 +523,7 @@ def glycemic_episodes(df, units=None, hypo_lv1_thresh=None, hypo_lv2_thresh=None
         lv1_hypers, lv2_hypers, prolonged_hypers = _glycemic_events_helper.calculate_episodes(df, False, hyper_lv1_thresh, hyper_lv2_thresh, mins,long_mins)
 
         # Prepare results dictionary
-        results = pd.Series({'number_lv1_hypos': total_hypos, 
+        results = pd.Series({'number_lv1_hypos': lv1_hypos, 
                     'number_lv2_hypos':lv2_hypos, 
                     'number_prolonged_hypos':prolonged_hypos, 
                     'number_lv1_hypers':lv1_hypers, 
@@ -577,25 +571,13 @@ def data_sufficiency(df, start_time=None, end_time=None, gap_size=None):
 
         # Subset the DataFrame based on the provided time range
         df = df.loc[(df['time'] >= start_time) & (df['time'] <= end_time)]
-
-        # Calculate the interval size
-        if gap_size == None:
-            df['time'].diff().mode().iloc[0]
-        else:
-            gap_size = timedelta(minutes=gap_size)
-            
-        # If it doesn't conform to 5 or 15 then don't count it
-        if ((timedelta(minutes=4) < gap_size) & (gap_size < timedelta(minutes=6))):
-            freq = '5min'
-        elif ((timedelta(minutes=14) < gap_size) & (gap_size < timedelta(minutes=16))):
-            freq = '15min'
-        else:
-            raise ValueError('Invalid gap size. Gap size must be 5 or 15.')
+        freq = '{}min'.format(gap_size) 
+        gap = pd.Timedelta(minutes=gap_size)
 
         # Calculate the number of non-null values
         number_readings = sum(df.set_index('time').groupby(pd.Grouper(freq=freq)).count()['glc'] > 0)
         # Calculate the total expected readings based on the start and end of the time range
-        total_readings = ((end_time - start_time) + gap_size) / gap_size
+        total_readings = ((end_time - start_time) + gap) / gap
 
         # Calculate the data sufficiency percentage
         if number_readings >= total_readings:

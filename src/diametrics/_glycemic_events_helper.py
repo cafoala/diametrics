@@ -88,5 +88,4 @@ def calculate_episodes(df, hypo, thresh, thresh_lv2, mins, long_mins):
         number_extended = (final_results_lv1['duration'] >= timedelta(minutes=long_mins)).sum()
     else:
         number_extended = (final_results_lv2['duration'] >= timedelta(minutes=long_mins)).sum()
-    print(f'Number of level 1 events: {number_of_lv1}, number of level 2 events: {number_of_lv2}, number of prolonged events: {number_extended}')
     return number_of_lv1, number_of_lv2, number_extended
