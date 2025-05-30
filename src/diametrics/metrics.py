@@ -6,7 +6,7 @@ import warnings
 from datetime import timedelta
 import statistics
 from sklearn import metrics
-import _glycemic_events_helper, preprocessing
+from . import _glycemic_events_helper, preprocessing
 
 
 UNIT_THRESHOLDS = {
