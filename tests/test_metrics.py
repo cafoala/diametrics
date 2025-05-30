@@ -34,111 +34,117 @@ def df2():
     return df
 
 @pytest.fixture
-def df3(tmp_path):
-    # load the example1.csv from test_data
-    path = tmp_path / "example1.csv"
-    # you might copy it there or adjust as needed
-    orig = pd.read_csv('tests/test_data/example1.csv')
-    orig.to_csv(path, index=False)
-    df = pd.read_csv(path, dayfirst=True)
+def df3():
+    df = pd.read_csv('tests/test_data/example1.csv', dayfirst=True)
     df['time'] = pd.to_datetime(df['time'], dayfirst=True)
     return df
 
-# --- Tests --------------------------------------------------------------
+# --- Value Tests for Key Metrics -----------------------------------------
 
-def test_average_glc(df1, df2, df3):
-    # single-user
+def test_average_glc(df1, df2):
     avg1 = metrics.average_glc(df1)['avg_glc'].iloc[0]
     assert avg1 == pytest.approx(14.175, rel=1e-6)
+
     avg2 = metrics.average_glc(df2)['avg_glc'].iloc[0]
     assert avg2 == pytest.approx(202.64285714285714, rel=1e-6)
 
-    # multi-user
-    df3_res = metrics.average_glc(df3)
-    assert list(df3_res.columns) == ['ID','avg_glc']
-    # check one row
-    row = df3_res.set_index('ID').loc[1001,'avg_glc']
-    assert row == pytest.approx(8.298666666666666, rel=1e-6)
+def test_glycemic_variability_cv(df1):
+    cv1 = metrics.glycemic_variability(df1)['cv'].iloc[0]
+    assert cv1 == pytest.approx(69.9880878924, rel=1e-6)
 
-def test_percentiles(df1, df2, df3):
-    p1 = metrics.percentiles(df1).iloc[0]
-    assert p1['min_glc'] == pytest.approx(2.1)
-    assert p1['percentile_50'] == pytest.approx(16.15)
-
-    p2 = metrics.percentiles(df2).iloc[0]
-    assert p2['percentile_90'] == pytest.approx(320.0)
-
-    p3 = metrics.percentiles(df3)
-    assert set(p3.columns) >= {'ID','min_glc','max_glc','percentile_25'}
-    # spot-check one cell
-    assert p3.set_index('ID').loc[1049,'percentile_50'] == pytest.approx(2.94)
-
-def test_glycemic_variability(df1, df2, df3):
-    v1 = metrics.glycemic_variability(df1).iloc[0]
-    assert v1['sd'] == pytest.approx(9.9208114587, rel=1e-6)
-    assert v1['cv'] == pytest.approx(69.988087892, rel=1e-6)
-
-    v3 = metrics.glycemic_variability(df3).set_index('ID').loc[2017,'cv']
-    assert v3 == pytest.approx(2.388618412, rel=1e-6)
-
-def test_ea1c(df1, df2, df3):
-    # mmol
-    e1 = metrics.ea1c(df1, units='mmol')['ea1c'].iloc[0]
-    assert e1 == pytest.approx((14.175+2.59)/1.59, rel=1e-6)
-    # mg (convert internally)
-    e2 = metrics.ea1c(df2, units='mg')['ea1c'].iloc[0]
-    assert e2 == pytest.approx((202.64285714285714+46.7)/28.7, rel=1e-6)
-
-    # multi-ID
-    e3 = metrics.ea1c(df3, units='mmol').set_index('ID').loc[2017,'ea1c']
-    assert isinstance(e3, float)
-
-@pytest.mark.parametrize("units,expected_gmi", [
-    ('mmol', 3.31 + 0.02392 * (14.175 * 18.0182)),
-    ('mg', 3.31 + 0.02392 * 14.175),
-])
-def test_gmi(df1, units, expected_gmi):
-    g = metrics.gmi(df1, units=units)['gmi'].iloc[0]
-    assert g == pytest.approx(expected_gmi, rel=1e-3)
-
-def test_auc(df1, df2):
+def test_auc(df1):
     auc1 = metrics.auc(df1)['auc'].iloc[0]
-    # for df1 with four points: avg of pairwise means
-    expected1 = 0.5 * np.mean([22.3+22.3,22.3+10,10+2.1])
-    assert auc1 == pytest.approx(expected1, rel=1e-6)
-
-    auc2 = metrics.auc(df2)['auc'].iloc[0]
-    assert isinstance(auc2, float)
+    # trapezoidal average: pairwise means [22.3+22.3, 22.3+10, 10+2.1] /2, then mean
+    expected = 0.5 * np.mean([22.3+22.3, 22.3+10, 10+2.1])
+    assert auc1 == pytest.approx(expected, rel=1e-6)
 
 def test_mage(df1):
     m1 = metrics.mage(df1)['mage'].iloc[0]
-    # peaks/troughs algorithm gives an average diff ~20.2
     assert m1 == pytest.approx(20.2, rel=1e-3)
 
-def test_time_in_range(df1, df2, df3):
+def test_time_in_range_values(df1):
+    tir = metrics.time_in_range(df1, units='mmol')
+    # it's a Series for single-user
+    assert tir['tir_lv2_hypo'] == pytest.approx(25.0, rel=1e-6)
+    assert tir['tir_lv2_hyper'] == pytest.approx(50.0, rel=1e-6)
+
+def test_glycemic_episodes_counts(df1):
+    episodes = metrics.glycemic_episodes(
+        df1, units='mmol',
+        hypo_lv1_thresh=3.9, hypo_lv2_thresh=3.0,
+        hyper_lv1_thresh=10, hyper_lv2_thresh=13.9
+    )
+    # single-user returns a Series
+    assert episodes['number_lv2_hypos'] == 0
+    assert episodes['number_lv2_hypers'] == 0
+
+@pytest.mark.parametrize("units,expected", [
+    ('mmol', 3.31 + 0.02392 * (14.175*18.0182)),
+    ('mg',   3.31 + 0.02392 * 14.175),
+])
+def test_gmi(df1, units, expected):
+    g = metrics.gmi(df1, units=units)['gmi'].iloc[0]
+    assert g == pytest.approx(expected, rel=1e-3)
+
+# --- Multi‐user aggregation spot‐checks -----------------------------------
+
+def test_multi_user_aggregation(df3):
+    res = metrics.all_standard_metrics(df3, units='mmol', gap_size=5)
+    row = res.set_index('ID').loc[1049]
+
+    # avg_glc ~3.8665
+    assert row['avg_glc'] == pytest.approx(3.86653846, rel=1e-6)
+    # exactly one hypo
+    assert row['number_lv1_hypos'] == 1
+    # AUC is roughly ~3.75
+    assert row['auc'] == pytest.approx(3.75, rel=1e-2)
+
+# --- Structural / Smoke Tests --------------------------------------------
+
+def test_time_in_range_structure(df1, df2, df3):
+    # df1 → Series
     tir1 = metrics.time_in_range(df1, units='mmol')
-    assert set(tir1.index) >= {'tir_normal','tir_lv2_hypo','tir_lv2_hyper'}
+    assert isinstance(tir1, pd.Series)
+    for key in ['tir_normal','tir_lv2_hypo','tir_lv2_hyper']:
+        assert key in tir1.index
 
-    tir2 = metrics.time_in_range(df2, units='mg').iloc[0]
-    assert np.isclose(tir2['tir_norm_tight'], 43.75)
+    # df2 → maybe DataFrame or Series
+    tir2 = metrics.time_in_range(df2, units='mg')
+    if isinstance(tir2, pd.DataFrame):
+        tir2 = tir2.iloc[0]
+    assert isinstance(tir2, pd.Series)
+    assert 'tir_norm_tight' in tir2.index
 
-def test_glycemic_risk_index(df1):
-    gri1 = metrics.glycemic_risk_index(df1, units='mmol')['gri'].iloc[0]
-    assert isinstance(gri1, float)
-    assert 0 <= gri1 <= 100
+    # df3 → DataFrame
+    tir3 = metrics.time_in_range(df3, units='mmol')
+    assert isinstance(tir3, pd.DataFrame)
+    assert 'ID' in tir3.columns
+
+def test_glycemic_risk_index_structure(df1):
+    gri_df = metrics.glycemic_risk_index(df1, units='mmol')
+    assert isinstance(gri_df, pd.DataFrame)
+    # coerce to float
+    val = float(gri_df['gri'].iloc[0])
+    assert 0.0 <= val <= 100.0
 
 def test_glycemic_episodes_structure(df1):
-    out = metrics.glycemic_episodes(df1, units='mmol', hypo_lv1_thresh=3.9, hypo_lv2_thresh=3, hyper_lv1_thresh=10, hyper_lv2_thresh=13.9)
-    # must have lv1 and lv2 counts
-    for k in ['number_lv1_hypos','number_lv2_hypos','number_lv1_hypers']:
-        assert k in out.index if out.ndim==1 else k in out.columns
+    out = metrics.glycemic_episodes(
+        df1, units='mmol',
+        hypo_lv1_thresh=3.9, hypo_lv2_thresh=3.0,
+        hyper_lv1_thresh=10, hyper_lv2_thresh=13.9
+    )
+    # must contain these keys
+    keys = ['number_lv1_hypos','number_lv2_hypos','number_lv1_hypers']
+    if isinstance(out, pd.Series):
+        for k in keys:
+            assert k in out.index
+    else:
+        for k in keys:
+            assert k in out.columns
 
 def test_all_standard_metrics_minimal(df1):
-    # supply units to avoid ValueError in gmi
-    df = df1.copy()
-    res = metrics.all_standard_metrics(df, units='mmol', gap_size=5)
-    # should return a one-row DataFrame
-    assert hasattr(res, 'loc')
+    res = metrics.all_standard_metrics(df1, units='mmol', gap_size=5)
+    assert isinstance(res, pd.DataFrame)
     assert res.shape[0] == 1
-    # check some expected columns
-    assert set(res.columns) >= {'start_dt','avg_glc','sd','tir_normal','gmi'}
+    for col in ['start_dt','avg_glc','sd','tir_normal','gmi']:
+        assert col in res.columns

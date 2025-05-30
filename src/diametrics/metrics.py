@@ -468,7 +468,7 @@ def glycemic_risk_index(df, units=None):
             (euglycemia * GRI_WEIGHTS['euglycemia']) +
             (hyper * GRI_WEIGHTS['hyperglycemia']) +
             (severe_hyper * GRI_WEIGHTS['severe_hyperglycemia']), 
-            100)  # cap to 100
+            100.0)  # cap to 100
         
         return pd.Series({'gri': gri_score})
 
